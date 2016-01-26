@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('angularTestTwo')
-  .service('offlineDB', function($http) {
+  .service('offlineDB', function($rootScope, $http) {
 
     var view_model = this;
 
@@ -15,11 +15,13 @@ angular.module('angularTestTwo')
     view_model.clearDB = clearDB;
 
     function openDB(callback) {
-      var version = 6;
+      var version = 36;
       var request = indexedDB.open('testItems', version);
+      var upgradeWasNeeded = false;
 
-      // Handle Upgrades:
+      // If a database upgrade is needed:
       request.onupgradeneeded = function(e) {
+        upgradeWasNeeded = true;
         var db = e.target.result;
         e.target.transaction.onerror = view_model.tDB.onerror;
 
@@ -32,15 +34,27 @@ angular.module('angularTestTwo')
         var store = db.createObjectStore('testItems', {
           keyPath: 'timestamp', autoIncrement: false
         });
+
+        //
+        $http({method: 'GET', url: '/angularexample/getElements' }).then(
+            function successCallback(response) {
+                createItem(response.data[0].fields, function() {
+                    console.log("New item created");
+                    callback();
+                });
+          }, function errorCallback(response) {
+            alert("An error occurred during retrieval...");
+          });
       };
 
-      // Handle successful datastore access:
-      request.onsuccess = function(e) {
-        view_model.datastore = e.target.result;
-        callback();
-      };
-
-      request.onerror = view_model.tDB.onerror;
+      // If an upgrade was not needed then fire the callback:
+      if(!upgradeWasNeeded) {
+        request.onsuccess = function(e) {
+          view_model.datastore = e.target.result;
+          callback();
+        };
+        request.onerror = view_model.tDB.onerror;
+      }
     };
 
     function fetchData(callback) {
@@ -73,14 +87,14 @@ angular.module('angularTestTwo')
       var timestamp = new Date().getTime();
 
       var testItem = {
-        'text': item.text,
+        'text': item.name,
         'timestamp': timestamp,
         'clicked': false
       };
 
       var request = objStore.put(testItem);
       request.onsuccess = function(e) {
-        callback(testItem);
+          callback(testItem);
       };
 
       request.onerror = view_model.tDB.onerror;

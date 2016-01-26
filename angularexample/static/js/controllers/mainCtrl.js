@@ -27,7 +27,7 @@ angular.module('angularTestTwo')
     };
 
     function newItem(item) {
-      offlineDB.createItem({text: item}, function(returnedObject) {
+      offlineDB.createItem({name: item}, function(returnedObject) {
         $scope.testItems.push(returnedObject);
         _updateToUI("Added.");
       });
@@ -61,14 +61,16 @@ angular.module('angularTestTwo')
 
 
     /* Synchronise every four seconds. */
-/*
+    /*
+    $scope.cachedTestItems = $scope.testItems;
     (function timeout() {
       setTimeout(function () {
-          refreshItems();
+          console.log("Calling timeout.");
+            $scope.$apply();
           timeout();
-      }, 4000);
+      }, 1000);
     })();
+    */
 
-*/
 
   });
