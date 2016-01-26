@@ -1,0 +1,57 @@
+{% load static from staticfiles %}
+<!doctype html>
+  <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css">
+    <style> .off { opacity: 0.75; }</style>
+  </head>
+  <body ng-app="angularTestTwo">
+    <div class="ui centered grid" ng-controller="mainCtrl">
+      <div class="row"></div>
+      <div class="row">
+        <div class="six wide center aligned column">
+          <div class="ui form">
+            <div class="field">
+              <label>Item Name</label>
+              <input type="text" ng-model="candidateItem" placeholder="Example Title">
+            </div>
+            <div class="ui submit button" tabindex="0" ng-click="newItem(candidateItem);">Submit</div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="ui divider"></div>
+        <div class="ui orange submit button" tabindex="1" ng-click="clearDB()">Clear DB</div>
+        <div class="ui green submit button" tabindex="2" ng-click="newItem('This is a test')">Add Test Item</div>
+      </div>
+      <div class="row"></div>
+      <div class="row">
+        <div class="sixteen wide center aligned column">
+          <h1>{{testTitle}}</h1>
+        </div>
+      </div>
+      <div class="row"></div>
+      <div class="row">
+        <div class="fourteen wide column">
+          <card></card>
+        </div>
+      </div>
+      <div class="row"></div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+    <script src="{% static "js/notify.min.js" %}"></script>
+    <script src="{% static "js/app.js" %}"></script>
+    <script src="{% static "js/controllers/mainCtrl.js" %}"></script>
+    <script src="{% static "js/services/fakeAPI.js" %}"></script>
+    <script src="{% static "js/services/offlineDB.js" %}"></script>
+    <script src="{% static "js/directives/card.js" %}"></script>
+    <!--
+    <script src="{{STATIC_URL}}/js/app.js"></script>
+    <script src="{{STATIC_URL}}/js/controllers/mainCtrl.js"></script>
+    <script src="/{{STATIC_URL}}/js/services/fakeAPI.js"></script>
+    <script src="{{STATIC_URL}}/js/services/offlineDB.js"></script>
+    <script src="{{STATIC_URL}}/js/directives/card.js"></script>
+  -->
+  </body>
+</html>
