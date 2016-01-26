@@ -15,13 +15,13 @@ angular.module('angularTestTwo')
     view_model.clearDB = clearDB;
 
     function openDB(callback) {
-      var version = 36;
+      var version = 41;
       var request = indexedDB.open('testItems', version);
-      var upgradeWasNeeded = false;
+      var upgradeNeeded = false;
 
       // If a database upgrade is needed:
       request.onupgradeneeded = function(e) {
-        upgradeWasNeeded = true;
+        upgradeNeeded = true;
         var db = e.target.result;
         e.target.transaction.onerror = view_model.tDB.onerror;
 
@@ -35,11 +35,12 @@ angular.module('angularTestTwo')
           keyPath: 'timestamp', autoIncrement: false
         });
 
-        //
+        // This is possibly inefficient...
         $http({method: 'GET', url: '/angularexample/getElements' }).then(
             function successCallback(response) {
                 createItem(response.data[0].fields, function() {
                     console.log("New item created");
+                    view_model.datastore = e.target.result;
                     callback();
                 });
           }, function errorCallback(response) {
@@ -48,7 +49,7 @@ angular.module('angularTestTwo')
       };
 
       // If an upgrade was not needed then fire the callback:
-      if(!upgradeWasNeeded) {
+      if(!upgradeNeeded) {
         request.onsuccess = function(e) {
           view_model.datastore = e.target.result;
           callback();
@@ -64,87 +65,53 @@ angular.module('angularTestTwo')
       var keyRange = IDBKeyRange.lowerBound(0);
       var cursorRequest = objStore.openCursor(keyRange);
       var testItems = [];
-
-      // Execute callback on complete:
       transaction.oncomplete = function(e) {
         callback(testItems);
       };
-
       cursorRequest.onsuccess = function(e) {
         var result = e.target.result;
         if (!!result == false) { return; }
         testItems.push(result.value);
         result.continue();
       };
-
       cursorRequest.onerror = view_model.tDB.onerror;
     };
 
     function createItem(item, callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
-      var objStore = transaction.objectStore('testItems');
       var timestamp = new Date().getTime();
-
       var testItem = {
         'text': item.name,
         'timestamp': timestamp,
         'clicked': false
       };
-
-      var request = objStore.put(testItem);
-      request.onsuccess = function(e) {
-          callback(testItem);
-      };
-
+      var request = _getObjStore().put(testItem);
+      request.onsuccess = function(e) { callback(testItem); };
       request.onerror = view_model.tDB.onerror;
     };
 
     function updateItem(item, callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
-      var objStore = transaction.objectStore('testItems');
-
       item.clicked = !item.clicked;
-      var request = objStore.put(item);
-      request.onsuccess = function(e) {
-        callback(item);
-      }
-      request.onerror = function(e) {
-        console.log(e);
-      }
+      var request = _getObjStore().put(item);
+      request.onsuccess = function(e) { callback(item); }
+      request.onerror = function(e) { console.log(e); }
     };
 
     function deleteItem(item, callback) {
-      var db = view_model.datastore;
-      var t = db.transaction(['testItems'], 'readwrite');
-      var objStore = t.objectStore('testItems');
-
-      var request = objStore.delete(item.timestamp);
-
-      request.onsuccess = function(e) {
-        callback();
-      }
-
-      request.onerror = function(e) {
-        console.log(e);
-      }
+      var request = _getObjStore().delete(item.timestamp);
+      request.onsuccess = function(e) { callback(); }
+      request.onerror = function(e) { console.log(e); }
     };
 
     function clearDB(callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
-      var objStore = transaction.objectStore('testItems');
-      var request = objStore.clear();
-
-      request.onsuccess = function(e) {
-        callback(objStore.getAll());
-      }
-
-      request.onerror = function(e) {
-        console.log(e);
-      }
+      var request = _getObjStore().clear();
+      request.onsuccess = function(e) { callback(objStore.getAll()); }
+      request.onerror = function(e) { console.log(e); }
     }
 
+    function _getObjStore() {
+      var db = view_model.datastore;
+      var transaction = db.transaction(['testItems'], 'readwrite');
+      return transaction.objectStore('testItems');
+    }
 
   });
