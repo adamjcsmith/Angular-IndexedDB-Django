@@ -37,7 +37,7 @@ angular.module('angularTestTwo')
         );
 
         // Add context values if no previous DB exists:
-        var contextReq = _getObjStore().put( {id: 'remoteLastUpdated', 'time' : new Date().getTime() } );
+        var contextReq = _getObjStore('testItems').put( {id: 'remoteLastUpdated', 'time' : new Date().getTime() } );
         contextReq.onsuccess = function(e) { /* do nothing for now */ };
         contextReq.onerror = view_model.tDB.onerror;
 
@@ -118,36 +118,40 @@ angular.module('angularTestTwo')
 
     };
 
-
     // Ask the database whether it has been updated since our last check.
     function checkRemote(callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
-      var contextStore = transaction.objectStore('context');
-      var lastCheckedReq = contextStore.get('remoteLastUpdated');
-      lastCheckedReq.onsuccess = function(e) {
-        /* Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare... */
+      /* Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare... */
+      _indexedDBLastUpdated(function(lastTime) {
+        // Here we now have the last time the local storage was updated. Check that the DB time does not exceed this.
         /* For now, always return true for diagnostics! */
         callback(true);
-      }
-      lastCheckedReq.onerror = view_model.tDB.onerror;
+      });
     }
 
 
     /* --------------- IndexedDB (Private) --------------- */
+
+    // Return when IndexedDB was last updated. Returns last updated time.
+    function _indexedDBLastUpdated(callback) {
+      var lastCheckedReq = _getObjStore('context').get('remoteLastUpdated');
+      lastCheckedReq.onsuccess = function(e) {
+        callback(e.result.time);
+      }
+      lastCheckedReq.onerror = view_model.tDB.onerror;
+    };
 
     // Add/Update to IndexedDB. This function returns nothing.
     function _putToIndexedDB(id, item, callback) {
       if(id === undefined || id === null) {
         _getNextID(function(nextID) {
           item.id = nextID;
-          var req = _getObjStore().put(item);
+          var req = _getObjStore('testItems').put(item);
           req.onsuccess = function(e) { callback(); };
           req.onerror = view_model.tDB.onerror;
         });
       }
       else {
-        var req = _getObjStore().put(item);
+        var req = _getObjStore('testItems').put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = view_model.tDB.onerror;
       }
@@ -155,14 +159,14 @@ angular.module('angularTestTwo')
 
     // Delete from IndexedDB. This function returns nothing.
     function _removeFromIndexedDB(id, callback) {
-      var req = _getObjStore().delete(id);
+      var req = _getObjStore('testItems').delete(id);
       req.onsucess = function(e) { callback(); }
       req.onerror = function(e) { console.log(e); }
     };
 
     // Wipe the entire IndexedDB. This function returns nothing.
     function _wipeIndexedDB(callback) {
-      var objStore = _getObjStore();
+      var objStore = _getObjStore('testItems');
       var req = objStore.clear();
       req.onsuccess = function(e) { callback(objStore.getAll()); }
       req.onerror = function(e) { console.log(e); }
@@ -188,44 +192,11 @@ angular.module('angularTestTwo')
         });
     };
 
-    function _getObjStore() {
+    function _getObjStore(name) {
       var db = view_model.datastore;
       var transaction = db.transaction(['testItems'], 'readwrite');
-      return transaction.objectStore('testItems');
+      return transaction.objectStore(name);
     };
-
-
-    /* --------------- Old --------------- */
-
-        /*
-        function createItem(item, id, callback) {
-          var testItem = _createObject(id, item.name, function(returnedObject) {
-            var request = _getObjStore().put(returnedObject);
-            request.onsuccess = function(e) { callback(returnedObject); };
-            request.onerror = view_model.tDB.onerror;
-          });
-        };
-
-        function updateItem(item, callback) {
-          item.clicked = !item.clicked;
-          var request = _getObjStore().put(item);
-          request.onsuccess = function(e) { callback(item); }
-          request.onerror = function(e) { console.log(e); }
-        };
-
-        function deleteItem(item, callback) {
-          var request = _getObjStore().delete(item.timestamp);
-          request.onsuccess = function(e) { callback(); }
-          request.onerror = function(e) { console.log(e); }
-        };
-
-        function clearDB(callback) {
-          var objStore = _getObjStore();
-          var request = objStore.clear();
-          request.onsuccess = function(e) { callback(objStore.getAll()); }
-          request.onerror = function(e) { console.log(e); }
-        };
-        */
 
 
   });
