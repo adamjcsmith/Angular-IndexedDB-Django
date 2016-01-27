@@ -8,7 +8,8 @@ def index(request):
 from django.shortcuts import render
 from django.core import serializers
 from django.views.generic import TemplateView
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+import json
 
 from .models import Element
 
@@ -23,7 +24,45 @@ class ElementView(TemplateView):
         json = serializers.serialize("json", Element.objects.all())
         return HttpResponse(json, content_type='application/json')
 
+'''
+class EditElementView(TemplateView):
+    def post(self, request):
+        # Check for a parameter:
+        '''
 
+
+
+
+
+'''
+class MemorialEditView(AjaxableResponseMixin, AdminView):
+    template_name = 'mapmanagement/edit/memorial-edit.html'
+    success_template_name = 'mapmanagement/edit/memorial-edit.html'
+    # success url is not used (due to ajax mixin), but can't be removed because
+    # django throws error if it is not there
+    success_url = '/mapmanagement'
+    formset_class = formset_factory(MemorialForm)
+
+    def post(self, request):
+        # This method is called when valid form data has been POSTed.
+        # It should return an HttpResponse.
+        memorial_formset = self.formset_class(request.POST, prefix='memorial')
+        # import pdb; pdb.set_trace()
+        if memorial_formset.is_valid(): #TODO: when new memorial there is no memorial_id, but this will be move to another diferent post by clicking the plot
+            try:
+                memorials_data = memorial_formset.cleaned_data
+                for key in request.FILES:
+                    memorialpos = key.split('-')[1]
+                    memorialfilekey = key
+                memorial_data = memorials_data[int(memorialpos)]
+                # import pdb; pdb.set_trace()
+                memorial = Memorial.objects.get(id=memorial_data['memorial_id'])
+                memorial.create_image(request.FILES[memorialfilekey])
+                return JsonResponse({})
+            except Exception as e:
+                return HttpResponseBadRequest(str(e))
+        return HttpResponseBadRequest(memorial_formset.errors)
+'''
 
 
 '''

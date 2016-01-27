@@ -27,7 +27,7 @@ angular.module('angularTestTwo')
     };
 
     function newItem(item) {
-      offlineDB.createItem({name: item}, function(returnedObject) {
+      offlineDB.createItem({name: item}, null, function(returnedObject) {
         $scope.testItems.push(returnedObject);
         _updateToUI("Added.");
       });

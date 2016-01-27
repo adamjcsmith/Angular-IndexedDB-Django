@@ -15,7 +15,7 @@ angular.module('angularTestTwo')
     view_model.clearDB = clearDB;
 
     function openDB(callback) {
-      var version = 41;
+      var version = 49;
       var request = indexedDB.open('testItems', version);
       var upgradeNeeded = false;
 
@@ -38,7 +38,10 @@ angular.module('angularTestTwo')
         // This is possibly inefficient...
         $http({method: 'GET', url: '/angularexample/getElements' }).then(
             function successCallback(response) {
-                createItem(response.data[0].fields, function() {
+
+              /* This should -----NOT----- use a createItem call! */
+
+                createItem(response.data[0].fields, response.data[0].pk, function() {
                     console.log("New item created");
                     view_model.datastore = e.target.result;
                     callback();
@@ -77,16 +80,12 @@ angular.module('angularTestTwo')
       cursorRequest.onerror = view_model.tDB.onerror;
     };
 
-    function createItem(item, callback) {
-      var timestamp = new Date().getTime();
-      var testItem = {
-        'text': item.name,
-        'timestamp': timestamp,
-        'clicked': false
-      };
-      var request = _getObjStore().put(testItem);
-      request.onsuccess = function(e) { callback(testItem); };
-      request.onerror = view_model.tDB.onerror;
+    function createItem(item, id, callback) {
+      var testItem = _createObject(id, item.name, function(returnedObject) {
+        var request = _getObjStore().put(returnedObject);
+        request.onsuccess = function(e) { callback(returnedObject); };
+        request.onerror = view_model.tDB.onerror;
+      });
     };
 
     function updateItem(item, callback) {
@@ -103,15 +102,41 @@ angular.module('angularTestTwo')
     };
 
     function clearDB(callback) {
-      var request = _getObjStore().clear();
+      var objStore = _getObjStore();
+      var request = objStore.clear();
       request.onsuccess = function(e) { callback(objStore.getAll()); }
       request.onerror = function(e) { console.log(e); }
-    }
+    };
+
+    /* --------------- Private --------------- */
+
+    function _createObject(id, text, callback) {
+      var timestamp = new Date().getTime();
+      getNextID(function(nextID) {
+        callback({ 'id' : nextID, 'text': text, 'timestamp': timestamp, 'clicked': false, 'uncheckedID' : true });
+      });
+    };
+
+    function getNextID(callback) {
+      /* Gets the next available ID according to the database */
+      /* 1. Attempt to connect to the SQLite DB. If successful, return the next available ID and unflag uncheckedID */
+      /* 2. If we cannot connect to the SQLite DB, then generate a next logical ID. Keep uncheckedID flagged. */
+
+      /* Contact element API call + count somehow */
+      $http({method: 'GET', url: '/angularexample/getElements' }).then(
+          function successCallback(response) {
+            var nextID = response.data.length;    /* this is the 'naiive' nextID way... */
+            callback(nextID);
+        }, function errorCallback(response) {
+            alert("Could not connect to the DB");   /* In this case, loop through the IndexedDB db and do the same as above... */
+        });
+
+    };
 
     function _getObjStore() {
       var db = view_model.datastore;
       var transaction = db.transaction(['testItems'], 'readwrite');
       return transaction.objectStore('testItems');
-    }
+    };
 
   });

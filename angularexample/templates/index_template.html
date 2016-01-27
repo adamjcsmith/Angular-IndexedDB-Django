@@ -9,13 +9,13 @@
       <div class="row"></div>
       <div class="row">
         <div class="six wide center aligned column">
-          <div class="ui form">
+          <form class="ui form" ng-submit="newItem(candidateItem);">
             <div class="field">
               <label>Item Name</label>
               <input type="text" ng-model="candidateItem" placeholder="Example Title">
             </div>
-            <div class="ui submit button" tabindex="0" ng-click="newItem(candidateItem);">Submit</div>
-          </div>
+            <button class="ui button" type="submit" tabindex="0">Submit</button>
+          </form>
         </div>
       </div>
       <div class="row">
