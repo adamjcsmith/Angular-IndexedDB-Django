@@ -8,11 +8,12 @@ angular.module('angularTestTwo')
     $scope.deleteThis = deleteThis;
     $scope.newItem = newItem;
     $scope.clearDB = clearDB;
+    $scope.testItems = [];
 
     offlineDB.openDB(function() {
       offlineDB.fetchData(function(testItems) {
           $scope.testItems = testItems;
-          $scope.$apply();
+          _updateToUI("Fetched Items from Service");
       });
     });
 
