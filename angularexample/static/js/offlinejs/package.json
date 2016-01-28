@@ -1,0 +1,25 @@
+{
+  "name": "offline-js",
+  "version": "0.7.15",
+  "description": "Automatically detect when a browser is offline",
+  "authors": [
+    "Adam Schwartz <adam.flynn.schwartz@gmail.com>",
+    "Zack Bloom <zackbloom@gmail.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/HubSpot/offline.git"
+  },
+  "main": "offline.js",
+  "license": "MIT",
+  "devDependencies": {
+    "coffee-script": "^1.9.3",
+    "color": "^0.9.0",
+    "grunt": "^0.4.1",
+    "grunt-cli": "^0.1.9",
+    "grunt-contrib-coffee": "^0.13.0",
+    "grunt-contrib-compass": "^1.0.3",
+    "grunt-contrib-uglify": "^0.9.1",
+    "grunt-contrib-watch": "^0.6.1"
+  }
+}

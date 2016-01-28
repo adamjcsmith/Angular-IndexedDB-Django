@@ -4,6 +4,7 @@ from django.template import loader
 def index(request):
     template = loader.get_template('templates/index_template.html')
 '''
+from datetime import datetime
 
 from django.shortcuts import render
 from django.core import serializers
@@ -21,10 +22,28 @@ class IndexView(TemplateView):
 
 class ElementView(TemplateView):
     def get(self, request):
-        json = serializers.serialize("json", Element.objects.all())
-        return HttpResponse(json, content_type='application/json')
+        after = request.GET.get('after', default='')
+        if(after == ''):
+            print("Executing the standard if block...")
+            result = Element.objects.raw('SELECT * FROM angularexample_element ORDER BY serverTimestamp DESC')
+            json = serializers.serialize("json", result)
+            return HttpResponse(json, content_type='application/json')
+        else:
+            print("Executing the else block...")
+            dateObj = datetime.strptime(after, "%Y-%m-%dT%H:%M:%S-%H:%M")
+            result = Element.objects.raw('SELECT * FROM angularexample_element WHERE serverTimestamp > %s', dateObj)
+            json = serializers.serialize("json", result)
+            return HttpResponse(json, content_type='application/json')
+
+
 
 '''
+class ElementsLastUpdatedView(TemplateView):
+    def get(self, request):
+        result = Element.objects.raw('SELECT id, updateTimestamp FROM angularexample_element ORDER BY updateTimestamp DESC')
+        json = serializers.serialize("json", result)
+
+
 class EditElementView(TemplateView):
     def post(self, request):
         # Check for a parameter:

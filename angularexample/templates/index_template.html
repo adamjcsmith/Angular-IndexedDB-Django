@@ -2,6 +2,7 @@
 <!doctype html>
   <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css">
+    <link rel="stylesheet" href="{% static "js/offlinejs/themes/offline-theme-default.css" %}">
     <style> .off { opacity: 0.75; }</style>
   </head>
   <body ng-app="angularTestTwo">
@@ -46,6 +47,8 @@
     <script src="{% static "js/services/fakeAPI.js" %}"></script>
     <script src="{% static "js/services/offlineDB.js" %}"></script>
     <script src="{% static "js/directives/card.js" %}"></script>
+    <script src="{% static "js/offlinejs/offline.min.js" %}"></script>
+
     <!--
     <script src="{{STATIC_URL}}/js/app.js"></script>
     <script src="{{STATIC_URL}}/js/controllers/mainCtrl.js"></script>

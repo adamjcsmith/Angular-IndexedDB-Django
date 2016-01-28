@@ -13,56 +13,20 @@ angular.module('angularTestTwo')
     view_model.updateItem = updateItem;
     view_model.deleteItem = deleteItem;
     view_model.clearDB = clearDB;
+    view_model.lastCheckedRemote = " ";
 
-    function openDB(callback) {
-      var version = 51;
-      var request = indexedDB.open('testItems', version);
-      var upgradeNeeded = false;
 
-      request.onupgradeneeded = function(e) {
-        upgradeNeeded = true;
-        var db = e.target.result;
-        e.target.transaction.onerror = view_model.tDB.onerror;
 
-        // Delete old data store and create a new one:
-        if(db.objectStoreNames.contains('testItems')) {
-          db.deleteObjectStore('testItems');
-          db.deleteObjectStore('context');
-        }
-        var store = db.createObjectStore('testItems',
-          { keyPath: 'timestamp', autoIncrement: false }
-        );
-        var context = db.createObjectStore('context',
-          { keyPath: 'id' }
-        );
+    /* New openDB - connectDB */
+    /* Semantically, this would establish a link remotely and *create* a local storage system for caching */
 
-        // Add context values if no previous DB exists:
-        var contextReq = _getObjStore('testItems').put( {id: 'remoteLastUpdated', 'time' : new Date().getTime() } );
-        contextReq.onsuccess = function(e) { /* do nothing for now */ };
-        contextReq.onerror = view_model.tDB.onerror;
+    function openDB() {
+      alert("Database is opened");
+    }
 
-        /* --------------- DEPRECATED --------------- */
-        $http({method: 'GET', url: '/angularexample/getElements' }).then(
-            function successCallback(response) {
-                createItem(response.data[0].fields, response.data[0].pk, function() {
-                    console.log("New item created");
-                    view_model.datastore = e.target.result;
-                    callback();
-                });
-          }, function errorCallback(response) {
-            alert("An error occurred during retrieval...");
-          });
-      };
 
-      // If an upgrade was not needed then fire the callback:
-      if(!upgradeNeeded) {
-        request.onsuccess = function(e) {
-          view_model.datastore = e.target.result;
-          callback();
-        };
-        request.onerror = view_model.tDB.onerror;
-      }
-    };
+
+
 
     function fetchData(callback) {
       var db = view_model.datastore;
@@ -118,16 +82,40 @@ angular.module('angularTestTwo')
 
     };
 
-    // Ask the database whether it has been updated since our last check.
-    function checkRemote(callback) {
-      /* Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare... */
+    // Check whether newer data is available remotely.
+    function _checkForRemoteUpdate(callback) {
+      // _remoteLastUpdated();
       _indexedDBLastUpdated(function(lastTime) {
         // Here we now have the last time the local storage was updated. Check that the DB time does not exceed this.
-        /* For now, always return true for diagnostics! */
-        callback(true);
+        callback(true);   /* For now, always return true for diagnostics! */
       });
-    }
+    };
 
+
+
+    // Get all the server data or just some of it? Dynamic?
+    function _getServerData() {
+
+    };
+
+
+    /*
+
+    // Ask the database whether it has been updated since our last check.
+    function _remoteLastUpdated(callback) {
+      // Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare...
+
+      $http({method: 'GET', url: '/angularexample/getElements/?after=' + view_model.lastCheckedRemote }).then(
+          function successCallback(response) {
+            // Pull out the value here:
+            alert("Response length was: " + response.length);
+            callback();
+        }, function errorCallback(response) {
+          alert("An error occurred during retrieval...");
+        });
+    };
+
+    */
 
     /* --------------- IndexedDB (Private) --------------- */
 
@@ -197,6 +185,62 @@ angular.module('angularTestTwo')
       var transaction = db.transaction(['testItems'], 'readwrite');
       return transaction.objectStore(name);
     };
+
+
+    /* --------------- Recycle Bin --------------- */
+
+    /*
+
+        function openDB(callback) {
+          var version = 51;
+          var request = indexedDB.open('testItems', version);
+          var upgradeNeeded = false;
+
+          request.onupgradeneeded = function(e) {
+            upgradeNeeded = true;
+            var db = e.target.result;
+            e.target.transaction.onerror = view_model.tDB.onerror;
+
+            // Delete old data store and create a new one:
+            if(db.objectStoreNames.contains('testItems')) {
+              db.deleteObjectStore('testItems');
+              db.deleteObjectStore('context');
+            }
+            var store = db.createObjectStore('testItems',
+              { keyPath: 'timestamp', autoIncrement: false }
+            );
+            var context = db.createObjectStore('context',
+              { keyPath: 'id' }
+            );
+
+            // Add context values if no previous DB exists:
+            var contextReq = _getObjStore('testItems').put( {id: 'remoteLastUpdated', 'time' : new Date().getTime() } );
+            contextReq.onsuccess = function(e) { };
+            contextReq.onerror = view_model.tDB.onerror;
+
+            $http({method: 'GET', url: '/angularexample/getElements' }).then(
+                function successCallback(response) {
+                    createItem(response.data[0].fields, response.data[0].pk, function() {
+                        console.log("New item created");
+                        view_model.datastore = e.target.result;
+                        callback();
+                    });
+              }, function errorCallback(response) {
+                alert("An error occurred during retrieval...");
+              });
+          };
+
+          // If an upgrade was not needed then fire the callback:
+          if(!upgradeNeeded) {
+            request.onsuccess = function(e) {
+              view_model.datastore = e.target.result;
+              callback();
+            };
+            request.onerror = view_model.tDB.onerror;
+          }
+        };
+
+    */
 
 
   });
