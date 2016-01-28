@@ -6,13 +6,13 @@
       <!-- <img class="right floated mini ui image" src="https://unsplash.it/100?random"> -->
       <i class="close link right floated icon" ng-click="deleteThis(person)"></i>
       <div class="header">
-        {{person.text}}
+        {{ ::person.text}}
       </div>
       <div class="meta">
         {{person.timestamp}}
       </div>
       <div class="description">
-        {{person.company.catchPhrase}}
+        {{ ::person.company.catchPhrase}}
       </div>
     </div>
     <div class="extra content">

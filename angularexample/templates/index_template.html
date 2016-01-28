@@ -9,6 +9,13 @@
     <div class="ui centered grid" ng-controller="mainCtrl">
       <div class="row"></div>
       <div class="row">
+        <div class="eight wide center aligned column">
+          <h2>Offline Web Functionality</h2>
+          <h3>Using AngularJS, IndexedDB and Django with SQLite</h3>
+        </div>
+      </div>
+      <div class="row"></div>
+      <div class="row">
         <div class="six wide center aligned column">
           <form class="ui form" ng-submit="newItem(candidateItem);">
             <div class="field">
@@ -48,6 +55,17 @@
     <script src="{% static "js/services/offlineDB.js" %}"></script>
     <script src="{% static "js/directives/card.js" %}"></script>
     <script src="{% static "js/offlinejs/offline.min.js" %}"></script>
+
+    <script>
+    Offline.options =  {
+      // Should we check the connection status immediatly on page load.
+      checkOnLoad: true,
+      // Should we store and attempt to remake requests which fail while the connection is down.
+      requests: true,
+      checks: {image: {url: 'http://www.atlanticgeomatics.co.uk/assets/images/logo.png'}, active: 'image'}
+    };
+
+    </script>
 
     <!--
     <script src="{{STATIC_URL}}/js/app.js"></script>

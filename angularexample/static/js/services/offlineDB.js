@@ -8,20 +8,26 @@ angular.module('angularTestTwo')
     view_model.tDB = {};
     view_model.datastore = null;
     view_model.openDB = openDB;
-    view_model.fetchData = fetchData;
+    /*
     view_model.createItem = createItem;
     view_model.updateItem = updateItem;
-    view_model.deleteItem = deleteItem;
+    view_model.deleteItem = deleteItem; */
+    view_model.fetchData = fetchData;
     view_model.clearDB = clearDB;
     view_model.lastCheckedRemote = " ";
 
+    /* Just exemplary for now */
+    function clearDB(callback) {
+      callback({});
+    }
 
 
     /* New openDB - connectDB */
     /* Semantically, this would establish a link remotely and *create* a local storage system for caching */
 
-    function openDB() {
+    function openDB(callback) {
       alert("Database is opened");
+      callback();
     }
 
 
@@ -29,6 +35,9 @@ angular.module('angularTestTwo')
 
 
     function fetchData(callback) {
+      var testItems = [];
+      callback(testItems);
+      /*
       var db = view_model.datastore;
       var transaction = db.transaction(['testItems'], 'readwrite');
       var objStore = transaction.objectStore('testItems');
@@ -45,6 +54,7 @@ angular.module('angularTestTwo')
         result.continue();
       };
       cursorRequest.onerror = view_model.tDB.onerror;
+      */
     };
 
 

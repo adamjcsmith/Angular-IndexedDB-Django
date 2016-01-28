@@ -52,7 +52,7 @@ angular.module('angularTestTwo')
 
     /* ---------- Private functions ---------- */
     function _updateToUI(text) {
-      $scope.$apply();
+      $scope.$applyAsync();
       _sendNotification(text);
     }
 
