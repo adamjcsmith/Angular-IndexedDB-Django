@@ -4,14 +4,9 @@ angular.module('angularTestTwo')
   .service('offlineDB', function($rootScope, $http) {
 
     var view_model = this;
-
-    view_model.tDB = {};
+    view_model.iDB = {};
     view_model.datastore = null;
     view_model.openDB = openDB;
-    /*
-    view_model.createItem = createItem;
-    view_model.updateItem = updateItem;
-    view_model.deleteItem = deleteItem; */
     view_model.fetchData = fetchData;
     view_model.clearDB = clearDB;
     view_model.lastCheckedRemote = " ";
@@ -21,12 +16,17 @@ angular.module('angularTestTwo')
       callback({});
     }
 
-
-    /* New openDB - connectDB */
+    /* New openDB - conneciDB */
     /* Semantically, this would establish a link remotely and *create* a local storage system for caching */
-
     function openDB(callback) {
       alert("Database is opened");
+
+      var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+
+      if(indexedDB == 'undefined' || indexedDB == null) {
+        // Tell the user that indexedDB is not supported on their system.
+      }
+
       callback();
     }
 
@@ -53,7 +53,7 @@ angular.module('angularTestTwo')
         testItems.push(result.value);
         result.continue();
       };
-      cursorRequest.onerror = view_model.tDB.onerror;
+      cursorRequest.onerror = view_model.iDB.onerror;
       */
     };
 
@@ -135,7 +135,7 @@ angular.module('angularTestTwo')
       lastCheckedReq.onsuccess = function(e) {
         callback(e.result.time);
       }
-      lastCheckedReq.onerror = view_model.tDB.onerror;
+      lastCheckedReq.onerror = view_model.iDB.onerror;
     };
 
     // Add/Update to IndexedDB. This function returns nothing.
@@ -145,7 +145,7 @@ angular.module('angularTestTwo')
           item.id = nextID;
           var req = _getObjStore('testItems').put(item);
           req.onsuccess = function(e) { callback(); };
-          req.onerror = view_model.tDB.onerror;
+          req.onerror = view_model.iDB.onerror;
         });
       }
       else {
@@ -200,7 +200,11 @@ angular.module('angularTestTwo')
     /* --------------- Recycle Bin --------------- */
 
     /*
+    view_model.createItem = createItem;
+    view_model.updateItem = updateItem;
+    view_model.deleteItem = deleteItem; */
 
+    /*
         function openDB(callback) {
           var version = 51;
           var request = indexedDB.open('testItems', version);
