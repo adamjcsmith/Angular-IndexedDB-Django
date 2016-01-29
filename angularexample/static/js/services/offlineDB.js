@@ -4,31 +4,54 @@ angular.module('angularTestTwo')
   .service('offlineDB', function($rootScope, $http) {
 
     var view_model = this;
-    view_model.iDB = {};
     view_model.datastore = null;
     view_model.openDB = openDB;
     view_model.fetchData = fetchData;
     view_model.clearDB = clearDB;
     view_model.lastCheckedRemote = " ";
 
-    /* Just exemplary for now */
-    function clearDB(callback) {
-      callback({});
-    }
+    function clearDB(callback) { callback({}); }
 
-    /* New openDB - conneciDB */
-    /* Semantically, this would establish a link remotely and *create* a local storage system for caching */
     function openDB(callback) {
-      alert("Database is opened");
 
-      var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-
-      if(indexedDB == 'undefined' || indexedDB == null) {
-        // Tell the user that indexedDB is not supported on their system.
+      // 1. Instantiate IndexedDB
+      var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
+      if(!_checkIndexedDB) {
+        alert("IndexedDB is not supported on your system. If you go offline, changes you make won't be saved.");
+        callback();
       }
 
-      callback();
-    }
+      /* --------------- Put this in fetchData! --------------- */
+      /* ------------------------------------------------------ */
+
+      // 2. Setup IndexedDB with static version number
+      var request = indexedDB.open('offlineDB', 100);
+      var upgradeRequired = false;
+
+      // 3. Handle (unlikely event) upgrades
+      request.onupgradeneeded = function(e) {
+        var upgradeRequired = true;
+        var db = e.target.result;
+        e.target.transaction.onerror = function() { console.error(this.error); };
+
+        if(db.objectStoreNames.contains('offlineItems')) {
+          db.deleteObjectStore('offlineItems');
+          db.deleteObjectStore('offlineContext');
+        }
+        db.createObjectStore('offlineItems', { keyPath: 'timestamp', autoIncrement: false } );
+        db.createObjectStore('offlineContext', { keyPath: 'id' } );
+
+        callback();
+      };
+
+      if(!upgradeRequired) {
+        request.onsuccess = function(e) {
+          view_model.datastore = e.target.result;
+          callback();
+        };
+        request.onerror = function() { console.error(this.error); };
+      }
+    };
 
 
 
@@ -36,6 +59,12 @@ angular.module('angularTestTwo')
 
     function fetchData(callback) {
       var testItems = [];
+
+      // 1.5. Ask the database for last updated:
+      //if(view_model.datastore.objectStoreNames.contains('offlineContext')) {
+        // Get the variable here and compare to the remote DB. Call getRemote() if appropriate.
+      //}
+
       callback(testItems);
       /*
       var db = view_model.datastore;
@@ -129,6 +158,10 @@ angular.module('angularTestTwo')
 
     /* --------------- IndexedDB (Private) --------------- */
 
+    function _checkIndexedDB() {
+      return !(indexedDB == 'undefined' || indexedDB == null);
+    };
+
     // Return when IndexedDB was last updated. Returns last updated time.
     function _indexedDBLastUpdated(callback) {
       var lastCheckedReq = _getObjStore('context').get('remoteLastUpdated');
@@ -192,7 +225,7 @@ angular.module('angularTestTwo')
 
     function _getObjStore(name) {
       var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
+      var transaction = db.transaction(['offlineItems'], 'readwrite');
       return transaction.objectStore(name);
     };
 
