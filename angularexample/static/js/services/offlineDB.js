@@ -13,34 +13,23 @@ angular.module('angularTestTwo')
     function clearDB(callback) { callback({}); }
 
     function openDB(callback) {
-
-      // 1. Instantiate IndexedDB
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
-      if(!_checkIndexedDB) {
-        alert("IndexedDB is not supported on your system. If you go offline, changes you make won't be saved.");
-        callback();
-      }
+      if(!_checkIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
-      /* --------------- Put this in fetchData! --------------- */
-      /* ------------------------------------------------------ */
-
-      // 2. Setup IndexedDB with static version number
       var request = indexedDB.open('offlineDB', 100);
       var upgradeRequired = false;
 
-      // 3. Handle (unlikely event) upgrades
       request.onupgradeneeded = function(e) {
         var upgradeRequired = true;
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
-
         if(db.objectStoreNames.contains('offlineItems')) {
           db.deleteObjectStore('offlineItems');
           db.deleteObjectStore('offlineContext');
         }
         db.createObjectStore('offlineItems', { keyPath: 'timestamp', autoIncrement: false } );
         db.createObjectStore('offlineContext', { keyPath: 'id' } );
-
+        view_model.datastore = db;
         callback();
       };
 
@@ -52,9 +41,6 @@ angular.module('angularTestTwo')
         request.onerror = function() { console.error(this.error); };
       }
     };
-
-
-
 
 
     function fetchData(callback) {
@@ -176,13 +162,13 @@ angular.module('angularTestTwo')
       if(id === undefined || id === null) {
         _getNextID(function(nextID) {
           item.id = nextID;
-          var req = _getObjStore('testItems').put(item);
+          var req = _getObjStore('offlineItems').put(item);
           req.onsuccess = function(e) { callback(); };
           req.onerror = view_model.iDB.onerror;
         });
       }
       else {
-        var req = _getObjStore('testItems').put(item);
+        var req = _getObjStore('offlineItems').put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = view_model.tDB.onerror;
       }
@@ -190,14 +176,14 @@ angular.module('angularTestTwo')
 
     // Delete from IndexedDB. This function returns nothing.
     function _removeFromIndexedDB(id, callback) {
-      var req = _getObjStore('testItems').delete(id);
+      var req = _getObjStore('offlineItems').delete(id);
       req.onsucess = function(e) { callback(); }
       req.onerror = function(e) { console.log(e); }
     };
 
     // Wipe the entire IndexedDB. This function returns nothing.
     function _wipeIndexedDB(callback) {
-      var objStore = _getObjStore('testItems');
+      var objStore = _getObjStore('offlineItems');
       var req = objStore.clear();
       req.onsuccess = function(e) { callback(objStore.getAll()); }
       req.onerror = function(e) { console.log(e); }
@@ -225,7 +211,7 @@ angular.module('angularTestTwo')
 
     function _getObjStore(name) {
       var db = view_model.datastore;
-      var transaction = db.transaction(['offlineItems'], 'readwrite');
+      var transaction = db.transaction(['offlineDB'], 'readwrite');
       return transaction.objectStore(name);
     };
 
