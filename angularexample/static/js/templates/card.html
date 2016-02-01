@@ -1,24 +1,24 @@
 <div class="ui cards">
 
-  <div ng-class="{'card': true, 'off': !person.clicked}" ng-repeat="person in testItems">
+  <div ng-class="{'card': true, 'off': !person.fields.clicked}" ng-repeat="person in testItems">
 
     <div class="content">
       <!-- <img class="right floated mini ui image" src="https://unsplash.it/100?random"> -->
       <i class="close link right floated icon" ng-click="deleteThis(person)"></i>
       <div class="header">
-        {{ ::person.fields.name}}
+        {{ person.fields.name}}
       </div>
       <div class="meta">
         {{person.fields.serverTimestamp}}
       </div>
       <div class="description">
-        {{ ::person.company.catchPhrase}}
+        {{ person.company.catchPhrase}}
       </div>
     </div>
     <div class="extra content">
       <div class="ui two buttons">
-        <div class="ui grey button" ng-click="updateThis(person)" ng-class="{'basic' : person.clicked}">Off</div>
-        <div class="ui button" ng-click="updateThis(person)" ng-class="{'basic' : !person.clicked, 'teal' : person.clicked, 'grey' : !person.clicked}">On</div>
+        <div class="ui grey button" ng-click="updateThis(person)" ng-class="{'basic' : person.fields.clicked}">Off</div>
+        <div class="ui button" ng-click="updateThis(person)" ng-class="{'basic' : !person.fields.clicked, 'teal' : person.fields.clicked, 'grey' : !person.fields.clicked}">On</div>
       </div>
     </div>
 
