@@ -7,11 +7,10 @@ angular.module('angularTestTwo')
     view_model.datastore = null;
     view_model.openDB = openDB;
     view_model.fetchData = fetchData;
+    view_model.refreshData = refreshData;
     view_model.clearDB = clearDB;
     view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
     view_model.serviceDB = []; /* Local image of the data */
-
-    view_model.refreshData = refreshData;
 
     function clearDB(callback) { callback({}); }
 
@@ -104,7 +103,6 @@ angular.module('angularTestTwo')
 
             if(response.data.length > 0) {
               view_model.lastCheckedRemote = response.data[0].fields.serverTimestamp;
-              //console.log("Last checked is now: " + view_model.lastCheckedRemote);
               callback(response.data);
             }
             else {
@@ -137,15 +135,6 @@ angular.module('angularTestTwo')
       return !(indexedDB == 'undefined' || indexedDB == null);
     };
 
-    // Return when IndexedDB was last updated. Returns last updated time.
-    function _indexedDBLastUpdated(callback) {
-      //var lastCheckedReq = _getObjStore('context').get('remoteLastUpdated');
-      //lastCheckedReq.onsuccess = function(e) {
-        //callback(e.result.time);
-      //}
-      //lastCheckedReq.onerror = view_model.iDB.onerror;
-    };
-
     // Get from IndexedDB. This function returns appropriate records.
     function _getFromIndexedDB(sinceWhen, callback) {
       var db = view_model.datastore;
@@ -167,39 +156,24 @@ angular.module('angularTestTwo')
       cursorRequest.onerror = function() { console.error("error"); };
     };
 
+    // Apply array of edited objects to IndexedDB.
     function _bulkPutToIndexedDB(array, callback) {
       var x = 0;
       function loopArray(array) {
         _putToIndexedDB(array[x],function(){
           x++;
-          if(x < array.length) {
-            loopArray(array);
-          }
-          else {
-            callback();
-          }
+          if(x < array.length) { loopArray(array); }
+          else { callback(); }
         });
       };
-
       loopArray(array);
     };
 
     // Add/Update to IndexedDB. This function returns nothing.
     function _putToIndexedDB(item, callback) {
-      /*
-      if(item.id === undefined || item.id === null) {
-        _getNextID(function(nextID) {
-          item.id = nextID;
-          var req = _getObjStore('offlineItems').put(item);
-          req.onsuccess = function(e) { callback(); };
-          req.onerror = view_model.iDB.onerror;
-        });
-      }
-      else { */
         var req = _getObjStore('offlineItems').put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = function() { console.error(this.error); };
-      //}
     };
 
     // Delete from IndexedDB. This function returns nothing.
@@ -226,6 +200,7 @@ angular.module('angularTestTwo')
       });
     };
 
+    /* -------------- TO BE DEPRECATED -------------- */
     function _getNextID(callback) {
       /* Contact element API call + count somehow */
       $http({method: 'GET', url: '/angularexample/getElements' }).then(
