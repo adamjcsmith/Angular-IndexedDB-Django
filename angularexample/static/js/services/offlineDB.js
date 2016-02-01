@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('angularTestTwo')
-  .service('offlineDB', function($rootScope, $http) {
+  .service('offlineDB', function($http) {
 
     var view_model = this;
     view_model.datastore = null;
@@ -9,6 +9,7 @@ angular.module('angularTestTwo')
     view_model.fetchData = fetchData;
     view_model.clearDB = clearDB;
     view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
+    view_model.serviceDB = []; /* Local image of the data */
 
     function clearDB(callback) { callback({}); }
 
@@ -25,10 +26,8 @@ angular.module('angularTestTwo')
         e.target.transaction.onerror = function() { console.error(this.error); };
         if(db.objectStoreNames.contains('offlineItems')) {
           db.deleteObjectStore('offlineItems');
-          db.deleteObjectStore('offlineContext');
         }
         db.createObjectStore('offlineItems', { keyPath: 'timestamp', autoIncrement: false } );
-        db.createObjectStore('offlineContext', { keyPath: 'id' } );
         view_model.datastore = db;
       };
 
@@ -41,38 +40,19 @@ angular.module('angularTestTwo')
 
 
     function fetchData(callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(["offlineItems"], "readwrite");
-      var objStore = transaction.objectStore('offlineItems');
-      var keyRange = IDBKeyRange.lowerBound(0);
-      var cursorRequest = objStore.openCursor(keyRange);
 
-      var returnableItems = [];
-      transaction.oncomplete = function(e) {
-
-        // We now have all IndexedDB records. Check for remote changes.
-        getRemoteRecords(function(remoteItems) {
-          // Loop through items, mergeData() function.
-          // Perform merge here:
-          alert("The remote items were: " + JSON.stringify(remoteItems));
-          callback(remoteItems);
+      // IndexedDB support:
+      if(_checkIndexedDB) {
+        _getFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
+            view_model.serviceDB = IDBRecords;
+            /* Check remote records here */
         });
+      }
+      else {
+        // Check for remote records since the epoch:
+      }
 
-      };
-
-      cursorRequest.onsuccess = function(e) {
-        var result = e.target.result;
-        if (!!result == false) { return; }
-        returnableItems.push(result.value);
-        result.continue();
-      };
-      cursorRequest.onerror = function() { console.error("error"); };
-
-      // 1.5. Ask the database for last updated:
-      //if(view_model.datastore.objectStoreNames.contains('offlineContext')) {
-        // Get the variable here and compare to the remote DB. Call getRemote() if appropriate.
-      //}
-
+      callback([]);
     };
 
 
@@ -83,8 +63,6 @@ angular.module('angularTestTwo')
 
       // 1. Don't iterate over the whole originalData array... not efficient.
       // 2. Items that don't have an available ID should be replaced...
-
-
     };
 
 
@@ -132,11 +110,32 @@ angular.module('angularTestTwo')
 
     // Return when IndexedDB was last updated. Returns last updated time.
     function _indexedDBLastUpdated(callback) {
-      var lastCheckedReq = _getObjStore('context').get('remoteLastUpdated');
-      lastCheckedReq.onsuccess = function(e) {
-        callback(e.result.time);
-      }
-      lastCheckedReq.onerror = view_model.iDB.onerror;
+      //var lastCheckedReq = _getObjStore('context').get('remoteLastUpdated');
+      //lastCheckedReq.onsuccess = function(e) {
+        //callback(e.result.time);
+      //}
+      //lastCheckedReq.onerror = view_model.iDB.onerror;
+    };
+
+    // Get from IndexedDB. This function returns appropriate records.
+    function _getFromIndexedDB(sinceWhen, callback) {
+      var db = view_model.datastore;
+      var transaction = db.transaction(["offlineItems"], "readwrite");
+      var objStore = transaction.objectStore('offlineItems');
+      var keyRange = IDBKeyRange.lowerBound(0);
+      var cursorRequest = objStore.openCursor(keyRange);
+      var returnableItems = [];
+      transaction.oncomplete = function(e) {
+        callback(returnableItems);
+      };
+      cursorRequest.onsuccess = function(e) {
+        var result = e.target.result;
+        if (!!result == false) { return; }
+        alert(result.value);
+        returnableItems.push(result.value);
+        result.continue();
+      };
+      cursorRequest.onerror = function() { console.error("error"); };
     };
 
     // Add/Update to IndexedDB. This function returns nothing.
@@ -193,7 +192,7 @@ angular.module('angularTestTwo')
 
     function _getObjStore(name) {
       var db = view_model.datastore;
-      var transaction = db.transaction(['localDB'], 'readwrite');
+      var transaction = db.transaction(['offlineItems'], 'readwrite');
       return transaction.objectStore(name);
     };
 
