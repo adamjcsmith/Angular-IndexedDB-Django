@@ -8,7 +8,7 @@ angular.module('angularTestTwo')
     view_model.openDB = openDB;
     view_model.fetchData = fetchData;
     view_model.clearDB = clearDB;
-    view_model.lastCheckedRemote = " ";
+    view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
 
     function clearDB(callback) { callback({}); }
 
@@ -16,7 +16,7 @@ angular.module('angularTestTwo')
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
       if(!_checkIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
-      var request = indexedDB.open('offlineDB', 100);
+      var request = indexedDB.open('localDB', 104);
       var upgradeRequired = false;
 
       request.onupgradeneeded = function(e) {
@@ -30,47 +30,84 @@ angular.module('angularTestTwo')
         db.createObjectStore('offlineItems', { keyPath: 'timestamp', autoIncrement: false } );
         db.createObjectStore('offlineContext', { keyPath: 'id' } );
         view_model.datastore = db;
-        callback();
       };
 
-      if(!upgradeRequired) {
-        request.onsuccess = function(e) {
-          view_model.datastore = e.target.result;
-          callback();
-        };
-        request.onerror = function() { console.error(this.error); };
-      }
+      request.onsuccess = function(e) {
+        view_model.datastore = e.target.result;
+        callback();
+      };
+      request.onerror = function() { console.error(this.error); };
     };
 
 
     function fetchData(callback) {
-      var testItems = [];
+      var db = view_model.datastore;
+      var transaction = db.transaction(["offlineItems"], "readwrite");
+      var objStore = transaction.objectStore('offlineItems');
+      var keyRange = IDBKeyRange.lowerBound(0);
+      var cursorRequest = objStore.openCursor(keyRange);
+
+      var returnableItems = [];
+      transaction.oncomplete = function(e) {
+
+        // We now have all IndexedDB records. Check for remote changes.
+        getRemoteRecords(function(remoteItems) {
+          // Loop through items, mergeData() function.
+          // Perform merge here:
+          alert("The remote items were: " + JSON.stringify(remoteItems));
+          callback(remoteItems);
+        });
+
+      };
+
+      cursorRequest.onsuccess = function(e) {
+        var result = e.target.result;
+        if (!!result == false) { return; }
+        returnableItems.push(result.value);
+        result.continue();
+      };
+      cursorRequest.onerror = function() { console.error("error"); };
 
       // 1.5. Ask the database for last updated:
       //if(view_model.datastore.objectStoreNames.contains('offlineContext')) {
         // Get the variable here and compare to the remote DB. Call getRemote() if appropriate.
       //}
 
-      callback(testItems);
-      /*
-      var db = view_model.datastore;
-      var transaction = db.transaction(['testItems'], 'readwrite');
-      var objStore = transaction.objectStore('testItems');
-      var keyRange = IDBKeyRange.lowerBound(0);
-      var cursorRequest = objStore.openCursor(keyRange);
-      var testItems = [];
-      transaction.oncomplete = function(e) {
-        callback(testItems);
-      };
-      cursorRequest.onsuccess = function(e) {
-        var result = e.target.result;
-        if (!!result == false) { return; }
-        testItems.push(result.value);
-        result.continue();
-      };
-      cursorRequest.onerror = view_model.iDB.onerror;
-      */
     };
+
+
+    /* --------------- Sync with remote database (Private) --------------- */
+
+    function mergeData(originalData, patchedData, callback) {
+      // Patches the old array with all applicable patchedData. Replaces the whole record.
+
+      // 1. Don't iterate over the whole originalData array... not efficient.
+      // 2. Items that don't have an available ID should be replaced...
+
+
+    };
+
+
+    function getRemoteRecords(callback) {
+      // Get records updated remotely since the lastCheckedRemote variable.
+      $http({method: 'GET', url: '/angularexample/getElements/?after=' + view_model.lastCheckedRemote }).then(
+          function successCallback(response) {
+
+            if(response.data.length > 0) {
+              view_model.lastCheckedRemote = response.data[0].fields.serverTimestamp;
+              //alert("Last checked is now: " + view_model.lastCheckedRemote);
+              callback(response.data);
+            }
+            else {
+              console.log("There were no updated records.");
+              callback(response.data);
+            }
+        }, function errorCallback(response) {
+          alert("An error occurred during retrieval...");
+        });
+    };
+
+
 
 
     /* --------------- Public Functions -------------- */
@@ -86,61 +123,6 @@ angular.module('angularTestTwo')
 
     }
 
-
-    /* --------------- Sync with remote database (Private) --------------- */
-
-    function sync(method, id, callback) {
-      // Do something here.
-
-      switch (method) {
-
-        case 'add':
-          // Contact DB here:
-          console.log("Contact DB here");
-          console.log("Make sure to change the uncheckedID flag to false if successful connection.");
-        case 'update':
-          console.log("Contact DB here");
-        case 'remove':
-          console.log("Contact DB here");
-
-      };
-
-    };
-
-    // Check whether newer data is available remotely.
-    function _checkForRemoteUpdate(callback) {
-      // _remoteLastUpdated();
-      _indexedDBLastUpdated(function(lastTime) {
-        // Here we now have the last time the local storage was updated. Check that the DB time does not exceed this.
-        callback(true);   /* For now, always return true for diagnostics! */
-      });
-    };
-
-
-
-    // Get all the server data or just some of it? Dynamic?
-    function _getServerData() {
-
-    };
-
-
-    /*
-
-    // Ask the database whether it has been updated since our last check.
-    function _remoteLastUpdated(callback) {
-      // Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare...
-
-      $http({method: 'GET', url: '/angularexample/getElements/?after=' + view_model.lastCheckedRemote }).then(
-          function successCallback(response) {
-            // Pull out the value here:
-            alert("Response length was: " + response.length);
-            callback();
-        }, function errorCallback(response) {
-          alert("An error occurred during retrieval...");
-        });
-    };
-
-    */
 
     /* --------------- IndexedDB (Private) --------------- */
 
@@ -211,7 +193,7 @@ angular.module('angularTestTwo')
 
     function _getObjStore(name) {
       var db = view_model.datastore;
-      var transaction = db.transaction(['offlineDB'], 'readwrite');
+      var transaction = db.transaction(['localDB'], 'readwrite');
       return transaction.objectStore(name);
     };
 
@@ -272,6 +254,58 @@ angular.module('angularTestTwo')
             request.onerror = view_model.tDB.onerror;
           }
         };
+
+    */
+
+    /*
+        function sync(method, id, callback) {
+          // Do something here.
+
+          switch (method) {
+
+            case 'add':
+              // Contact DB here:
+              console.log("Contact DB here");
+              console.log("Make sure to change the uncheckedID flag to false if successful connection.");
+            case 'update':
+              console.log("Contact DB here");
+            case 'remove':
+              console.log("Contact DB here");
+
+          };
+
+        };
+
+        // Check whether newer data is available remotely.
+        function _checkForRemoteUpdate(callback) {
+          // _remoteLastUpdated();
+          _indexedDBLastUpdated(function(lastTime) {
+            // Here we now have the last time the local storage was updated. Check that the DB time does not exceed this.
+            callback(true);
+          });
+        };
+
+        // Get all the server data or just some of it? Dynamic?
+        function _getServerData() {
+
+        };
+    */
+
+    /*
+
+    // Ask the database whether it has been updated since our last check.
+    function _remoteLastUpdated(callback) {
+      // Here, we now have the last time we checked. Connect to SQLite here to discover its last updated time and compare...
+
+      $http({method: 'GET', url: '/angularexample/getElements/?after=' + view_model.lastCheckedRemote }).then(
+          function successCallback(response) {
+            // Pull out the value here:
+            alert("Response length was: " + response.length);
+            callback();
+        }, function errorCallback(response) {
+          alert("An error occurred during retrieval...");
+        });
+    };
 
     */
 

@@ -4,7 +4,7 @@ from django.template import loader
 def index(request):
     template = loader.get_template('templates/index_template.html')
 '''
-from datetime import datetime
+import dateutil.parser
 
 from django.shortcuts import render
 from django.core import serializers
@@ -29,9 +29,8 @@ class ElementView(TemplateView):
             json = serializers.serialize("json", result)
             return HttpResponse(json, content_type='application/json')
         else:
-            print("Executing the else block...")
-            dateObj = datetime.strptime(after, "%Y-%m-%dT%H:%M:%S-%H:%M")
-            result = Element.objects.raw('SELECT * FROM angularexample_element WHERE serverTimestamp > %s', dateObj)
+            dateObj = dateutil.parser.parse(after, fuzzy=True)
+            result = Element.objects.raw('SELECT * FROM angularexample_element WHERE serverTimestamp > %s ORDER BY serverTimestamp DESC', (dateObj, ))
             json = serializers.serialize("json", result)
             return HttpResponse(json, content_type='application/json')
 
