@@ -60,6 +60,17 @@ angular.module('angularTestTwo')
       $.notify(text, {position: "bottom right", showDuration: 100, className: "success"});
     };
 
+    (function timeout() {
+      setTimeout(function() {
+        offlineDB.refreshData("1970-01-01T00:00:00.413Z", function(returnedData) {
+          $scope.testItems = returnedData;
+          _updateToUI("Synced with Server");
+        });
+        timeout();
+      }, 4000);
+
+      })();
+
 
     /* Synchronise every four seconds. */
     /*
