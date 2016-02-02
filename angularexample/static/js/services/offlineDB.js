@@ -4,23 +4,19 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     var view_model = this;
     view_model.datastore = null;
-    view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
     view_model.serviceDB = []; /* Local image of the data */
 
     view_model.openDB = openDB;
     view_model.fetchData = fetchData;
     view_model.refreshData = refreshData;
-    view_model.clearDB = clearDB;
 
     function openDB(callback) {
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
       if(!_checkIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
       var request = indexedDB.open('localDB', 106);
-      var upgradeRequired = false;
 
       request.onupgradeneeded = function(e) {
-        var upgradeRequired = true;
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
         if(db.objectStoreNames.contains('offlineItems')) {
@@ -94,20 +90,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- CRUD Functions -------------- */
 
-    function clearDB(callback) { callback({}); }
-
     /* --------------- Remote (Private) --------------- */
 
     function _getRemoteRecords(lastTimestamp, callback) {
       $http({method: 'GET', url: '/angularexample/getElements/?after=' + lastTimestamp }).then(
           function successCallback(response) {
-            if(response.data.length > 0) {
-              view_model.lastCheckedRemote = response.data[0].fields.serverTimestamp;
-              callback(response.data);
-            }
-            else {
-              callback(response.data); /* Return blank array */
-            }
+            if(response.data.length > 0) { callback(response.data); }
+            else { callback(response.data); }
         }, function errorCallback(response) {
           callback([]); /* If the remote lookup was unsuccessful, return blank array */
         });
@@ -121,19 +110,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Get from IndexedDB. This function returns appropriate records.
     function _getFromIndexedDB(sinceWhen, callback) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(["offlineItems"], "readwrite");
+      var transaction = _newIDBTransaction();
       var objStore = transaction.objectStore('offlineItems');
       var keyRange = IDBKeyRange.lowerBound(0);
       var cursorRequest = objStore.openCursor(keyRange);
       var returnableItems = [];
-      transaction.oncomplete = function(e) {
-        callback(returnableItems);
-      };
+      transaction.oncomplete = function(e) { callback(returnableItems); };
       cursorRequest.onsuccess = function(e) {
         var result = e.target.result;
         if (!!result == false) { return; }
-        console.log(result.value);
         returnableItems.push(result.value);
         result.continue();
       };
@@ -175,6 +160,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       req.onerror = function() { console.error(this.error); };
     };
 
+    function _newIDBTransaction() {
+      return view_model.datastore.transaction(['offlineItems'], 'readwrite');
+    }
+
+    function _getObjStore(name) {
+      return _newIDBTransaction().objectStore(name);
+    };
+
     /* --------------- Utilities --------------- */
 
     function _generateUUID() {
@@ -188,12 +181,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           return (c=='x' ? r : (r&0x3|0x8)).toString(16);
       });
       return uuid;
-    };
-
-    function _getObjStore(name) {
-      var db = view_model.datastore;
-      var transaction = db.transaction(['offlineItems'], 'readwrite');
-      return transaction.objectStore(name);
     };
 
   });
