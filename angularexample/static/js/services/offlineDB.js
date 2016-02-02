@@ -18,7 +18,7 @@ angular.module('angularTestTwo')
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
       if(!_checkIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
-      var request = indexedDB.open('localDB', 105);
+      var request = indexedDB.open('localDB', 106);
       var upgradeRequired = false;
 
       request.onupgradeneeded = function(e) {
@@ -96,37 +96,24 @@ angular.module('angularTestTwo')
 
     /* --------------- Sync with remote database (Private) --------------- */
 
-    function _getRemoteRecords(lastTimestamp, callback) {
       // Get records updated remotely since the lastCheckedRemote variable.
+    function _getRemoteRecords(lastTimestamp, callback) {
       $http({method: 'GET', url: '/angularexample/getElements/?after=' + lastTimestamp }).then(
           function successCallback(response) {
-
             if(response.data.length > 0) {
               view_model.lastCheckedRemote = response.data[0].fields.serverTimestamp;
               callback(response.data);
             }
             else {
-              console.log("There were no updated records.");
-              callback(response.data);
+              callback(response.data); /* Return blank array */
             }
         }, function errorCallback(response) {
-          console.log("An error occurred during retrieval...");
-          callback([]);
+          callback([]); /* If the remote lookup was unsuccessful, return blank array */
         });
     };
 
-    /* --------------- Public Functions -------------- */
+    /* --------------- CRUD Functions -------------- */
 
-    // Creates an item object from a basic object. Returns nothing.
-    function addItem(basicObject, callback) {
-
-      var newObject = _createObject(basicObject.text, function(returnedObject) {
-        _putToIndexedDB(returnedObject.id, returnedObject, function() {
-          // Inform the server here and return a useful object.
-        });
-      } );
-
-    }
 
 
     /* --------------- IndexedDB (Private) --------------- */
@@ -180,7 +167,7 @@ angular.module('angularTestTwo')
     function _removeFromIndexedDB(id, callback) {
       var req = _getObjStore('offlineItems').delete(id);
       req.onsucess = function(e) { callback(); }
-      req.onerror = function(e) { console.log(e); }
+      req.onerror = function() { console.error(this.error); };
     };
 
     // Wipe the entire IndexedDB. This function returns nothing.
@@ -188,28 +175,19 @@ angular.module('angularTestTwo')
       var objStore = _getObjStore('offlineItems');
       var req = objStore.clear();
       req.onsuccess = function(e) { callback(objStore.getAll()); }
-      req.onerror = function(e) { console.log(e); }
+      req.onerror = function() { console.error(this.error); };
     };
 
 
     /* --------------- Utilities --------------- */
 
     function _createObject(text, callback) {
-      _getNextID(function(nextID) {
-        callback({ 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true });
-      });
+        //callback({ 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true });
     };
 
     /* -------------- TO BE DEPRECATED -------------- */
     function _getNextID(callback) {
-      /* Contact element API call + count somehow */
-      $http({method: 'GET', url: '/angularexample/getElements' }).then(
-          function successCallback(response) {
-            var nextID = response.data.length;    /* this is the 'naiive' nextID way... */
-            callback(nextID);
-        }, function errorCallback(response) {
-            console.log("Could not connect to the DB");   /* In this case, loop through the IndexedDB db and do the same as above... */
-        });
+      /* Replace with UUID method */
     };
 
     function _getObjStore(name) {

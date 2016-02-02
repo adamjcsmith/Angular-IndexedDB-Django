@@ -63,6 +63,8 @@ angular.module('angularTestTwo')
     (function timeout() {
       setTimeout(function() {
         offlineDB.refreshData("1970-01-01T00:00:00.413Z", function(returnedData) {
+          // POTENTIAL OPTIMISATION
+          //if(returnedData != $scope.testItems) $scope.testItems = returnedData;
           $scope.testItems = returnedData;
           _updateToUI("Synced with Server");
         });
