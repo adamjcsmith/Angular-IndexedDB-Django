@@ -1,18 +1,16 @@
 'use strict';
 
-angular.module('angularTestTwo')
-  .service('offlineDB', function($http) {
+angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     var view_model = this;
     view_model.datastore = null;
+    view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
+    view_model.serviceDB = []; /* Local image of the data */
+
     view_model.openDB = openDB;
     view_model.fetchData = fetchData;
     view_model.refreshData = refreshData;
     view_model.clearDB = clearDB;
-    view_model.lastCheckedRemote = "1970-01-01T00:00:00.413Z";
-    view_model.serviceDB = []; /* Local image of the data */
-
-    function clearDB(callback) { callback({}); }
 
     function openDB(callback) {
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
@@ -94,9 +92,12 @@ angular.module('angularTestTwo')
       });
     };
 
-    /* --------------- Sync with remote database (Private) --------------- */
+    /* --------------- CRUD Functions -------------- */
 
-      // Get records updated remotely since the lastCheckedRemote variable.
+    function clearDB(callback) { callback({}); }
+
+    /* --------------- Remote (Private) --------------- */
+
     function _getRemoteRecords(lastTimestamp, callback) {
       $http({method: 'GET', url: '/angularexample/getElements/?after=' + lastTimestamp }).then(
           function successCallback(response) {
@@ -111,10 +112,6 @@ angular.module('angularTestTwo')
           callback([]); /* If the remote lookup was unsuccessful, return blank array */
         });
     };
-
-    /* --------------- CRUD Functions -------------- */
-
-
 
     /* --------------- IndexedDB (Private) --------------- */
 
@@ -178,16 +175,19 @@ angular.module('angularTestTwo')
       req.onerror = function() { console.error(this.error); };
     };
 
-
     /* --------------- Utilities --------------- */
 
-    function _createObject(text, callback) {
-        //callback({ 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true });
-    };
-
-    /* -------------- TO BE DEPRECATED -------------- */
-    function _getNextID(callback) {
-      /* Replace with UUID method */
+    function _generateUUID() {
+      var d = new Date().getTime();
+      if(window.performance && typeof window.performance.now === "function"){
+          d += performance.now(); // use high-precision timer if available
+      }
+      var uuid = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = (d + Math.random()*16)%16 | 0;
+          d = Math.floor(d/16);
+          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+      return uuid;
     };
 
     function _getObjStore(name) {
@@ -195,6 +195,5 @@ angular.module('angularTestTwo')
       var transaction = db.transaction(['offlineItems'], 'readwrite');
       return transaction.objectStore(name);
     };
-
 
   });

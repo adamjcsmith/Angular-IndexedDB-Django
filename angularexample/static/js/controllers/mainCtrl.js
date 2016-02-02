@@ -17,6 +17,10 @@ angular.module('angularTestTwo')
       });
     });
 
+    function createObject() {
+      // return { 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true }
+    };
+
     function clearDB() {
       offlineDB.clearDB(function(returnedArray) {
         if(Object.keys(returnedArray).length == 0) {
