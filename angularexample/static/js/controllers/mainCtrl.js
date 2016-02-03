@@ -10,8 +10,8 @@ angular.module('angularTestTwo')
     $scope.clearDB = clearDB;
     $scope.testItems = [];
 
-    offlineDB.openDB(function() {
-      offlineDB.fetchData(function(testItems) {
+    offlineDB.establishIndexedDB(function() {
+      offlineDB.getInitialData(function(testItems) {
           $scope.testItems = testItems;
           _updateToUI("Fetched Items from Service");
       });
@@ -66,7 +66,7 @@ angular.module('angularTestTwo')
 
     (function timeout() {
       setTimeout(function() {
-        offlineDB.refreshData("1970-01-01T00:00:00.413Z", function(returnedData) {
+        offlineDB.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
           // POTENTIAL OPTIMISATION
           //if(returnedData != $scope.testItems) $scope.testItems = returnedData;
           $scope.testItems = returnedData;

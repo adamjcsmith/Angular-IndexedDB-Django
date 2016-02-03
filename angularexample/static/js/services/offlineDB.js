@@ -6,13 +6,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.datastore = null;
     view_model.serviceDB = []; /* Local image of the data */
 
-    view_model.openDB = openDB;
-    view_model.fetchData = fetchData;
-    view_model.refreshData = refreshData;
+    view_model.establishIndexedDB = establishIndexedDB;
+    view_model.getInitialData = getInitialData;
+    view_model.syncData = syncData;
 
-    function openDB(callback) {
+    function establishIndexedDB(callback) {
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
-      if(!_checkIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
+      if(!_hasIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
       var request = indexedDB.open('localDB', 106);
 
@@ -33,9 +33,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       request.onerror = function() { console.error(this.error); };
     };
 
-    function fetchData(callback) {
+    function getInitialData(callback) {
       // IndexedDB support:
-      if(_checkIndexedDB) {
+      if(_hasIndexedDB) {
         _getFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
             view_model.serviceDB = IDBRecords;
             callback(view_model.serviceDB);
@@ -50,7 +50,61 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       }
     };
 
-    function refreshData(lastTimestamp, callback) {
+    function newSyncData(localNewData, lastTimestamp, callback) {
+
+
+      _getRemoteRecords(lastTimestamp, function(returnedRecords) {
+
+        if(returnedRecords.length > 0) {
+
+          // call compare records...
+
+        }
+        else {
+          // escape route...
+        }
+
+      });
+
+/*
+      async.waterfall([
+        async.apply(_getRemoteRecords, lastTimestamp),
+        function(records, callback) {
+          if(records.length == 0) return;
+          else callback(records);
+        },
+      ], function(err, result) { }
+    );
+*/
+
+    };
+
+
+    /* No need for a callback */
+    function _compareRecords(localNew, serverNew) {
+
+      // Loop through each old record, looking for a matching UUID in the server new...
+      var conflictingRecords = [];
+
+      for(var i=0; i<localNew.length; i++) {
+
+        var matchID = -1;
+        var matchID = _.findIndex(serverNew, ['pk', localNew[i].pk]);
+
+        if(matchID > -1) {
+          conflictingRecords.push(localNew[matchID]);
+          localNew.splice(matchID, 1); /* The for loop i variable needs to be reset here !!!!! */
+          i--;
+        }
+      }
+
+      // Return { safeData, rejectedData };
+      // rejectedData will be new copies of conflicting edits.
+    };
+
+
+    /* To be deprecated in a future edit */
+    function syncData(lastTimestamp, callback) {
 
       console.log("Refresh data was called somewhere");
 
@@ -60,14 +114,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         console.log("Remote records worked");
 
         // If IndexedDB support:
-        if(_checkIndexedDB()) {
+        if(_hasIndexedDB()) {
 
           console.log("check Indexed db worked");
 
           console.log("Returned records is: " + JSON.stringify(returnedRecords));
 
           // Replace affected records in IndexedDB:
-          _bulkPutToIndexedDB(returnedRecords, function() {
+          _putArrayToIndexedDB(returnedRecords, function() {
 
               console.log("Bulk put worked");
 
@@ -88,8 +142,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       });
     };
 
-    /* --------------- CRUD Functions -------------- */
-
     /* --------------- Remote (Private) --------------- */
 
     function _getRemoteRecords(lastTimestamp, callback) {
@@ -104,7 +156,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- IndexedDB (Private) --------------- */
 
-    function _checkIndexedDB() {
+    function _hasIndexedDB() {
       return !(indexedDB == 'undefined' || indexedDB == null);
     };
 
@@ -126,7 +178,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     // Apply array of edited objects to IndexedDB.
-    function _bulkPutToIndexedDB(array, callback) {
+    function _putArrayToIndexedDB(array, callback) {
       var x = 0;
       function loopArray(array) {
         _putToIndexedDB(array[x],function(){
@@ -152,8 +204,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       req.onerror = function() { console.error(this.error); };
     };
 
-    // Wipe the entire IndexedDB. This function returns nothing.
-    function _wipeIndexedDB(callback) {
+    // Wipe an IndexedDB object store. This function returns nothing.
+    function _clearObjStore(callback) {
       var objStore = _getObjStore('offlineItems');
       var req = objStore.clear();
       req.onsuccess = function(e) { callback(objStore.getAll()); }
