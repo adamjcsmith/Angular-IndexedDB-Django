@@ -57,7 +57,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
         if(returnedRecords.length > 0) {
 
-          // call compare records...
+          // call compare records... (not a callback function)
 
         }
         else {
@@ -65,17 +65,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         }
 
       });
-
-/*
-      async.waterfall([
-        async.apply(_getRemoteRecords, lastTimestamp),
-        function(records, callback) {
-          if(records.length == 0) return;
-          else callback(records);
-        },
-      ], function(err, result) { }
-    );
-*/
 
     };
 
@@ -92,13 +81,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         var matchID = _.findIndex(serverNew, ['pk', localNew[i].pk]);
 
         if(matchID > -1) {
-          conflictingRecords.push(localNew[matchID]);
+          conflictingRecords.push(localNew[matchID]); /* change this to server new with the corresponding ID!! */
           localNew.splice(matchID, 1); /* The for loop i variable needs to be reset here !!!!! */
           i--;
         }
       }
 
-      // Return { safeData, rejectedData };
+      //return { localNew, rejectedData };
       // rejectedData will be new copies of conflicting edits.
     };
 
