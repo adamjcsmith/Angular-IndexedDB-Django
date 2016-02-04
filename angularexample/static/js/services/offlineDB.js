@@ -52,7 +52,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function newSyncData(localNewData, lastTimestamp, callback) {
 
-
       _getRemoteRecords(lastTimestamp, function(returnedRecords) {
 
         if(returnedRecords.length > 0) {
@@ -69,28 +68,20 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
-    /* No need for a callback */
+    /* Compare local updates with server updates */
     function _compareRecords(localNew, remoteNew) {
-
       var conflictingRecords = [];
       var safeRemote = remoteNew;
       var safeLocal = [];
-
       for(var i=0; i<localNew.length; i++) {
-
         var matchID = -1;
         var matchID = _.findIndex(safeRemote, ['pk', localNew[i].pk]);
-
         if(matchID > -1) {
           conflictingRecords.push(safeRemote[matchID]);
           safeRemote.splice(matchID, 1);
         }
-        else {
-          safeLocal.push(localNew[i]);
-        }
-
+        else { safeLocal.push(localNew[i]); }
       }
-
       return { safeLocal, safeRemote, conflictingRecords };
     };
 
