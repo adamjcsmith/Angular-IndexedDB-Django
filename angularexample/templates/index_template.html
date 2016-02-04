@@ -3,28 +3,32 @@
   <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css">
     <link rel="stylesheet" href="{% static "js/offlinejs/themes/offline-theme-default.css" %}">
-    <link rel="stylesheet" href="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine.css" %}">
+    <!-- <link rel="stylesheet" href="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine.css" %}"> -->
     <style> .off { opacity: 0.75; }</style>
   </head>
-  <body ng-app="angularTestTwo">
-    <div class="ui centered grid" ng-controller="mainCtrl">
-      <div class="row"></div>
-      <div class="row">
-        <div class="eight wide center aligned column">
-          <h2>Offline Web Functionality</h2>
-          <h3>Using AngularJS, IndexedDB and Django with SQLite</h3>
+  <body ng-app="angularTestTwo" ng-controller="mainCtrl">
+
+    <div class="ui stackable menu">
+      <div class="header item">Offline Engine</div>
+      <a class="item">Force Refresh</a>
+      <a class="item">Link</a>
+      <div class="right menu">
+        <div class="item">
+          <form class="ui form" ng-submit="newItem(candidateItem);">
+            <input type="text" ng-model="candidateItem" placeholder="Enter a new item to add">
+            <button class="ui button" type="submit">Create</button>
+          </form>
         </div>
+        <a class="item">Clear All</a>
       </div>
+    </div>
+
+
+    <div class="ui centered grid">
       <div class="row"></div>
       <div class="row">
         <div class="six wide center aligned column">
-          <form class="ui form" ng-submit="newItem(candidateItem);">
-            <div class="field">
-              <label>Item Name</label>
-              <input type="text" ng-model="candidateItem" placeholder="Example Title">
-            </div>
-            <button class="ui button" type="submit" tabindex="0">Submit</button>
-          </form>
+
         </div>
       </div>
       <div class="row">
@@ -59,9 +63,11 @@
     <script src="{% static "js/indexeddbpolyfill/indexeddbpolyfill.min.js" %}"></script>
     <script src="{% static "js/lodash/lodash.js" %}"></script>
     <script src="{% static "js/async/async.js" %}"></script>
+    <!--
     <script src="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine.js" %}"></script>
     <script src="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine-html.js" %}"></script>
     <script src="{% static "js/jasmine/lib/jasmine-2.4.1/boot.js" %}"></script>
+  -->
 
     <script>
     Offline.options =  {
