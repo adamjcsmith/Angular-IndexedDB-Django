@@ -3,6 +3,7 @@
   <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css">
     <link rel="stylesheet" href="{% static "js/offlinejs/themes/offline-theme-default.css" %}">
+    <link rel="stylesheet" href="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine.css" %}">
     <style> .off { opacity: 0.75; }</style>
   </head>
   <body ng-app="angularTestTwo">
@@ -58,6 +59,9 @@
     <script src="{% static "js/indexeddbpolyfill/indexeddbpolyfill.min.js" %}"></script>
     <script src="{% static "js/lodash/lodash.js" %}"></script>
     <script src="{% static "js/async/async.js" %}"></script>
+    <script src="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine.js" %}"></script>
+    <script src="{% static "js/jasmine/lib/jasmine-2.4.1/jasmine-html.js" %}"></script>
+    <script src="{% static "js/jasmine/lib/jasmine-2.4.1/boot.js" %}"></script>
 
     <script>
     Offline.options =  {

@@ -70,25 +70,28 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
     /* No need for a callback */
-    function _compareRecords(localNew, serverNew) {
+    function _compareRecords(localNew, remoteNew) {
 
-      // Loop through each old record, looking for a matching UUID in the server new...
       var conflictingRecords = [];
+      var safeRemote = remoteNew;
+      var safeLocal = [];
 
       for(var i=0; i<localNew.length; i++) {
 
         var matchID = -1;
-        var matchID = _.findIndex(serverNew, ['pk', localNew[i].pk]);
+        var matchID = _.findIndex(safeRemote, ['pk', localNew[i].pk]);
 
         if(matchID > -1) {
-          conflictingRecords.push(localNew[matchID]); /* change this to server new with the corresponding ID!! */
-          localNew.splice(matchID, 1); /* The for loop i variable needs to be reset here !!!!! */
-          i--;
+          conflictingRecords.push(safeRemote[matchID]);
+          safeRemote.splice(matchID, 1);
         }
+        else {
+          safeLocal.push(localNew[i]);
+        }
+
       }
 
-      //return { localNew, rejectedData };
-      // rejectedData will be new copies of conflicting edits.
+      return { safeLocal, safeRemote, conflictingRecords };
     };
 
 
