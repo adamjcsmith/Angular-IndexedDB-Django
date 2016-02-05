@@ -10,61 +10,42 @@
 
     <div ng-controller="mainCtrl">
 
-    <div class="ui stackable menu">
-      <div class="header item">Offline Engine</div>
-      <a class="item">Force Refresh</a>
-      <a class="item">Link</a>
-      <div class="right menu">
-        <div class="item">
-          <form class="ui form" ng-submit="newItem(candidateItem);">
-            <input type="text" ng-model="candidateItem" placeholder="Enter a new item to add">
-            <button class="ui button" type="submit">Create</button>
-          </form>
+      <div class="ui stackable inverted violet menu">
+        <div class="header item">Offline Engine</div>
+        <a class="item">Force Refresh</a>
+        <a class="item" ng-click="clearDB()">Clear All</a>
+        <div class="right menu">
+          <div class="item">
+            <form class="ui inverted action input" ng-submit="newItem(candidateItem);">
+              <input type="text" ng-model="candidateItem" placeholder="Enter a new item">
+              <button class="ui button" type="submit">Create</button>
+            </form>
+          </div>
         </div>
-        <a class="item">Clear All</a>
       </div>
-    </div>
 
-
-    <div class="ui centered grid">
-      <div class="row"></div>
-      <div class="row">
-        <div class="six wide center aligned column">
-
+      <div class="ui centered grid">
+        <div class="row"></div>
+        <div class="row">
+          <div class="fourteen wide column">
+            <card></card>
+          </div>
         </div>
+        <div class="row"></div>
       </div>
-      <div class="row">
-        <div class="ui divider"></div>
-        <div class="ui orange submit button" tabindex="1" ng-click="clearDB()">Clear DB</div>
-        <div class="ui green submit button" tabindex="2" ng-click="newItem('This is a test')">Add Test Item</div>
-      </div>
-      <div class="row"></div>
-      <div class="row">
-        <div class="sixteen wide center aligned column">
-          <h1>{{testTitle}}</h1>
-        </div>
-      </div>
-      <div class="row"></div>
-      <div class="row">
-        <div class="fourteen wide column">
-          <card></card>
-        </div>
-      </div>
-      <div class="row"></div>
-    </div>
 
   </div>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
-    <script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
-    <script src="{% static "js/notify.min.js" %}"></script>
-    <script src="{% static "js/app.js" %}"></script>
-    <script src="{% static "js/controllers/mainCtrl.js" %}"></script>
-    <script src="{% static "js/services/fakeAPI.js" %}"></script>
-    <script src="{% static "js/services/offlineDB.js" %}"></script>
-    <script src="{% static "js/directives/card.js" %}"></script>
+    <script src="{% static "js/angularjs/angular.min.js" %}"></script>
+    <script src="{% static "js/jquery/jquery.min.js" %}"></script>
+    <script src="{% static "js/notify/notify.min.js" %}"></script>
+    <script src="{% static "js/offline-angular-app/app.js" %}"></script>
+    <script src="{% static "js/offline-angular-app/controllers/mainCtrl.js" %}"></script>
+    <script src="{% static "js/offline-angular-app/services/fakeAPI.js" %}"></script>
+    <script src="{% static "js/offline-angular-app/services/offlineDB.js" %}"></script>
+    <script src="{% static "js/offline-angular-app/directives/card.js" %}"></script>
     <script src="{% static "js/offlinejs/offline.min.js" %}"></script>
-    <script src="{% static "js/indexeddbpolyfill/indexeddbpolyfill.min.js" %}"></script>
+    <script src="{% static "js/indexedDB-polyfill/indexeddbpolyfill.min.js" %}"></script>
     <script src="{% static "js/lodash/lodash.js" %}"></script>
     <script src="{% static "js/async/async.js" %}"></script>
     <!--
@@ -84,12 +65,5 @@
 
     </script>
 
-    <!--
-    <script src="{{STATIC_URL}}/js/app.js"></script>
-    <script src="{{STATIC_URL}}/js/controllers/mainCtrl.js"></script>
-    <script src="/{{STATIC_URL}}/js/services/fakeAPI.js"></script>
-    <script src="{{STATIC_URL}}/js/services/offlineDB.js"></script>
-    <script src="{{STATIC_URL}}/js/directives/card.js"></script>
-  -->
   </body>
 </html>

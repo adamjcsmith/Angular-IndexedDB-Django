@@ -3,6 +3,7 @@
 angular.module('angularTestTwo')
   .controller('mainCtrl', function($scope, offlineDB) {
 
+    $scope.testTitle = "Testing AngularJS + IndexedDB...";
     $scope.updateThis = updateThis;
     $scope.deleteThis = deleteThis;
     $scope.newItem = newItem;
@@ -76,5 +77,19 @@ angular.module('angularTestTwo')
       }, 4000);
 
       })();
+
+
+    /* Synchronise every four seconds. */
+    /*
+    $scope.cacheddataModel = $scope.dataModel;
+    (function timeout() {
+      setTimeout(function () {
+          console.log("Calling timeout.");
+            $scope.$apply();
+          timeout();
+      }, 1000);
+    })();
+    */
+
 
   });
