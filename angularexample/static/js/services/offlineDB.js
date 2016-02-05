@@ -56,7 +56,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
         if(returnedRecords.length > 0) {
 
-          // call compare records... (not a callback function)
+          var result = _compareRecords(localNewData, returnedRecords);
+          // Should have safeLocal, safeRemote and conflictingRecords arrays.
 
         }
         else {
