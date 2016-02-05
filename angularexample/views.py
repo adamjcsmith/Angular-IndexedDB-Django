@@ -36,6 +36,7 @@ class ElementView(TemplateView):
 
 
 
+
 '''
 class ElementsLastUpdatedView(TemplateView):
     def get(self, request):
