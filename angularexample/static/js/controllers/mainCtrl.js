@@ -3,10 +3,13 @@
 angular.module('angularTestTwo')
   .controller('mainCtrl', function($scope, offlineDB) {
 
-    $scope.updateThis = updateThis;
+    /* $scope.updateThis = updateThis;
     $scope.deleteThis = deleteThis;
     $scope.newItem = newItem;
-    $scope.clearDB = clearDB;
+    $scope.clearDB = clearDB; */
+
+    $scope.createObject = createObject;
+
     $scope.dataModel = [];
 
     offlineDB.establishIndexedDB(function() {
@@ -16,10 +19,27 @@ angular.module('angularTestTwo')
       });
     });
 
-    function createObject() {
+    function transformObject() {
       // return { 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true }
+      return "";
     };
 
+    function createObject() {
+      // UUID creation here and stuff...
+      var newUUID = _generateUUID();
+      alert("The UUID is: " + newUUID);
+
+      /*
+      offlineDB.addItem({}, function(returnedObject) {
+        $scope.dataModel.push(returnedObject);
+        _updateToUI("Added.");
+      })
+      */
+
+    };
+
+
+/*
     function clearDB() {
       offlineDB.clearDB(function(returnedArray) {
         if(Object.keys(returnedArray).length == 0) {
@@ -54,6 +74,9 @@ angular.module('angularTestTwo')
       })
     };
 
+*/
+
+
     /* ---------- Private functions ---------- */
     function _updateToUI(text) {
       $scope.$applyAsync();
@@ -64,6 +87,20 @@ angular.module('angularTestTwo')
       $.notify(text, {position: "bottom right", showDuration: 100, className: "success"});
     };
 
+    function _generateUUID() {
+      var d = new Date().getTime();
+      if(window.performance && typeof window.performance.now === "function"){
+          d += performance.now(); // use high-precision timer if available
+      }
+      var uuid = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = (d + Math.random()*16)%16 | 0;
+          d = Math.floor(d/16);
+          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+      return uuid;
+    };
+
+/*
     (function timeout() {
       setTimeout(function() {
         offlineDB.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
@@ -76,5 +113,6 @@ angular.module('angularTestTwo')
       }, 4000);
 
       })();
+    */
 
   });

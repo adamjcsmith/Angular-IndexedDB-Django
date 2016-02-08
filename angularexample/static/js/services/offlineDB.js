@@ -10,6 +10,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.getInitialData = getInitialData;
     view_model.syncData = syncData;
 
+    function addItem(object, callback) {
+
+
+    };
+
     function establishIndexedDB(callback) {
       var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
       if(!_hasIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
@@ -58,6 +63,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
           var result = _compareRecords(localNewData, returnedRecords);
           var remotePatch = _determinePatchOperation(result.safeLocal);
+
+          alert("The remote patch records were: " + JSON.stringify(remotePatch));
+
+          callback({status: true, localPatch: [] });
 
           // Do remote patching here.
           // Update IndexedDB here with a bulk put ()
@@ -161,10 +170,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Attempts to post data to a URL.
     function _remoteCreate(record, callback) {
       $http({
-          url: '/angularexample/postNewElement',
+          url: '/angularexample/createElements',
           method: "POST",
           data: record,
-          headers: {'Content-Type': 'application/json'}
+          headers: {'Content-Type': 'application/x-www-form-urlencoded' }
       })
       .then(function(response) { callback(true); },
           function(response) { callback(false); }
@@ -246,17 +255,5 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Utilities --------------- */
 
-    function _generateUUID() {
-      var d = new Date().getTime();
-      if(window.performance && typeof window.performance.now === "function"){
-          d += performance.now(); // use high-precision timer if available
-      }
-      var uuid = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = (d + Math.random()*16)%16 | 0;
-          d = Math.floor(d/16);
-          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
-      });
-      return uuid;
-    };
 
   });

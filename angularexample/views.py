@@ -8,11 +8,35 @@ import dateutil.parser
 
 from django.shortcuts import render
 from django.core import serializers
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, FormView
 from django.http import HttpResponse, JsonResponse
 import json
 
 from .models import Element
+from .forms import CreateElementForm
+from django.forms.formsets import formset_factory
+
+class AjaxableResponseMixin(object):
+    """
+    Mixin to add AJAX support to a form.
+    Must be used with an object-based FormView (e.g. CreateView)
+    """
+    def form_invalid(self, form):
+        response = super(AjaxableResponseMixin, self).form_invalid(form)
+        if self.request.is_ajax():
+            return JsonResponse(form.errors, status=400)
+        else:
+            return response
+
+    def form_valid(self, form, responseData):
+        # We make sure to call the parent's form_valid() method because
+        # it might do some processing (in the case of CreateView, it will
+        # call form.save() for example).
+        response = super(AjaxableResponseMixin, self).form_valid(form)
+        if self.request.is_ajax():
+            return JsonResponse(responseData)
+        else:
+            return response
 
 
 class IndexView(TemplateView):
@@ -35,6 +59,18 @@ class ElementView(TemplateView):
             return HttpResponse(json, content_type='application/json')
 
 
+class CreateElementView():
+    formset_class = formset_factory(CreateElementForm)
+    def post(self, request):
+        element_formset = self.formset_class(request.POST, prefix='element')
+        if element_formset.is_valid():
+            try:
+                element_data = element_formset.cleaned_data
+                # do something here...
+                return JsonResponse({})
+            except Exception as e:
+                return HttpResponseBadRequest(str(e))
+        return HttpResponseBadRequest(element_formset.errors)
 
 
 '''
