@@ -49,12 +49,12 @@ class ElementView(TemplateView):
         after = request.GET.get('after', default='')
         if(after == ''):
             print("Executing the standard if block...")
-            result = Element.objects.raw('SELECT * FROM angularexample_element ORDER BY serverTimestamp DESC')
+            result = Element.objects.raw('SELECT * FROM angularexample_element ORDER BY timestamp DESC')
             json = serializers.serialize("json", result)
             return HttpResponse(json, content_type='application/json')
         else:
             dateObj = dateutil.parser.parse(after, fuzzy=True)
-            result = Element.objects.raw('SELECT * FROM angularexample_element WHERE serverTimestamp > %s ORDER BY serverTimestamp DESC', (dateObj, ))
+            result = Element.objects.raw('SELECT * FROM angularexample_element WHERE timestamp > %s ORDER BY timestamp DESC', (dateObj, ))
             json = serializers.serialize("json", result)
             return HttpResponse(json, content_type='application/json')
 

@@ -2,24 +2,63 @@
 
 angular.module('angularTestTwo').service('offlineDB', function($http) {
 
+    // Variables
     var view_model = this;
-    view_model.datastore = null;
+    view_model.idb = null;
     view_model.serviceDB = []; /* Local image of the data */
+    view_model.observerCallbacks = [];
+    //view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z"); /* Initially the epoch */
+    view_model.lastChecked = new Date("2016-01-30T10:28:05.413Z").toISOString();
 
-    view_model.establishIndexedDB = establishIndexedDB;
-    view_model.getInitialData = getInitialData;
+    // Public Functions
     view_model.syncData = syncData;
+    view_model.registerController = registerController;
+    view_model.addItem = addItem;
+    view_model.generateTimestamp = generateTimestamp;
 
-    function addItem(object, callback) {
+    // Determine IndexedDB Support
+    var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 
+    function addItem(object) {
+      alert("pushing " + JSON.stringify(object) + " to serviceDB");
+      view_model.serviceDB.push(object);
+     };
 
-    };
+    function registerController(ctrlCallback) {
+       if(view_model.idb == null) {
+         establishIndexedDB(function() {
+           view_model.observerCallbacks.push(ctrlCallback);
+           // Temporary
+           /*
+           view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
+             view_model.serviceDB = returnedData;
+             ctrlCallback();
+           }); */
+         });
+       }
+       else {
+         view_model.observerCallbacks.push(ctrlCallback);
+         // Temporary
+         /*
+         view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
+           view_model.serviceDB = returnedData;
+           ctrlCallback();
+         }); */
+       }
+     };
+
+    function notifyObservers() {
+         angular.forEach(view_model.observerCallbacks, function(callback){
+           console.log("callback called...");
+           callback();
+         });
+       };
+
 
     function establishIndexedDB(callback) {
-      var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
       if(!_hasIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
-      var request = indexedDB.open('localDB', 106);
+      var request = indexedDB.open('localDB', 108);
 
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
@@ -28,50 +67,67 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           db.deleteObjectStore('offlineItems');
         }
         db.createObjectStore('offlineItems', { keyPath: 'pk', autoIncrement: false } );
-        view_model.datastore = db;
+        view_model.idb = db;
       };
 
       request.onsuccess = function(e) {
-        view_model.datastore = e.target.result;
+        view_model.idb = e.target.result;
         callback();
       };
       request.onerror = function() { console.error(this.error); };
     };
 
-    function getInitialData(callback) {
-      // IndexedDB support:
-      if(_hasIndexedDB) {
-        _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
-            view_model.serviceDB = IDBRecords;
-            callback(view_model.serviceDB);
-        });
-      }
-      else {
-        // Check for remote records since the epoch:
-        _getRemoteRecords("1970-01-01T00:00:00.413Z", function(remoteRecords) {
-          view_model.serviceDB = remoteRecords;
-          callback(view_model.serviceDB);
-        });
-      }
-    };
 
-    function newSyncData(localNewData, lastTimestamp, callback) {
+    function newSyncData(callback) {
 
-      _getRemoteRecords(lastTimestamp, function(returnedRecords) {
+      //alert("view_model.lastChecked is: " + view_model.lastChecked);
+
+      _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
 
         if(returnedRecords.length > 0) {
 
-          var result = _compareRecords(localNewData, returnedRecords);
-          var remotePatch = _determinePatchOperation(result.safeLocal);
+          var localNewData = _getRecentRecords();
+          var result;
+          if(localNewData.length > 0) {
+            // This means that there's new local data and new remote data.
+            // We need to patch this data both locally and remotely.
+            // Use _compareRecords to determine collisions.
 
-          alert("The remote patch records were: " + JSON.stringify(remotePatch));
+            result = _compareRecords(localNewData, returnedRecords);
+            // We have safe local records, safe remote records here etc.
+            // We need to determine patch operations of both.
 
-          callback({status: true, localPatch: [] });
+          }
+          else {
+            // This means that there's no new local data, but there's new remote data.
+            // Means that we should patch this data to serviceDB.
+            // Use _determinePatchOperation to sort creates from updates
+            // Cover the case where serviceDB is empty - eg this is the first loop through.
+
+            var operations = _determinePatchOperation(returnedRecords);
+            alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
+            // This is correct.
+
+            // Do the serviceDB update / create operations here.
+            _updatesToServiceDB(operations.updateOperations);
+            _pushToServiceDB(operations.createOperations);
+            callback();
+
+          }
+
+          //alert("result.safeLocal was: " + result.safeLocal);
+          //var remotePatch = _determinePatchOperation(result.safeLocal);
+
+          //var remotePatch = _determinePatchOperation(result.safeLocal);
+
+          // Now we have safe CREATE and UPDATE results to do remotely:
+          //for(var i=0; i<)
+
 
           // Do remote patching here.
           // Update IndexedDB here with a bulk put ()
           // Then copy to serviceDB.
-
+          //callback({status: true, localPatch: [] });
         }
         else {
           // escape route...
@@ -79,6 +135,31 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       });
 
+    };
+
+
+    function _pushToServiceDB(array) {
+      for(var i=0; i<array.length; i++) {
+        view_model.serviceDB.push(array[i]);
+      }
+    };
+
+    function _updatesToServiceDB(array) {
+      for(var i=0; i<array.length; i++) {
+        var matchID = _.findIndex(view_model.serviceDB, array[i].pk);
+        if(matchID > -1) {
+          view_model.serviceDB[matchID] = array[i]; // Replace whole record.
+        }
+      }
+    };
+
+
+    function _getRecentRecords() {
+      // Loop through the serviceDB (possibly using lodash _.filter) to derive records newer than last_checked.
+      var localNew = _.filter(view_model.serviceDB, function(o) { var theDate = new Date(o.fields.timestamp); return theDate > view_model.lastChecked; });
+      //alert("recent records were: " + localNew);
+      view_model.lastChecked = generateTimestamp;
+      return localNew;
     };
 
 
@@ -96,7 +177,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         }
         else { safeLocal.push(localNew[i]); }
       }
-      return { safeLocal, safeRemote, conflictingRecords };
+      return { safeLocal: safeLocal, safeRemote: safeRemote, conflictingRecords: conflictingRecords };
     };
 
     /* Filter remote operations into create and update/delete */
@@ -105,6 +186,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var createOps = [];
       for(var i=0; i<safeLocal.length; i++) {
         var query = _.findIndex(view_model.serviceDB, {'pk' : safeLocal[i].pk });
+        console.log("_determinePatchOperation query was: " + query);
+        console.log("serviceDB length is: " + view_model.serviceDB.length);
         if(query > -1 ) updateOps.push(safeLocal[i]);
         else createOps.push(safeLocal[i]);
       }
@@ -246,14 +329,73 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _newIDBTransaction() {
-      return view_model.datastore.transaction(['offlineItems'], 'readwrite');
+      return view_model.idb.transaction(['offlineItems'], 'readwrite');
     }
 
     function _getObjStore(name) {
       return _newIDBTransaction().objectStore(name);
     };
 
-    /* --------------- Utilities --------------- */
+    /* --------------- Check Loop --------------- */
+
+
+    function generateTimestamp() {
+      var d = new Date();
+      return d.toISOString();
+    };
+
+
+    (function syncLoop() {
+      setTimeout(function() {
+        newSyncData(function() {
+          notifyObservers();
+        });
+        /*
+        view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
+          view_model.serviceDB = returnedData;
+          notifyObservers();
+          _getRecentRecords();
+        });
+        */
+        syncLoop();
+      }, 4000);
+      })();
+
+
+
+  /* --------------- Recycling -------------- */
+
+  /*
+      function getInitialData(callback) {
+        // If IndexedDB is supported:
+        if(_hasIndexedDB) {
+          // If IDB storage is not yet been instantiated:
+          if(view_model.idb == null) {
+            establishIndexedDB(function() {
+              _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
+                  view_model.serviceDB = IDBRecords;
+                  callback(view_model.serviceDB);
+              });
+            })
+          } else {
+            _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
+                view_model.serviceDB = IDBRecords;
+                callback(view_model.serviceDB);
+            });
+          }
+
+        }
+        else {
+          // Check for remote records since the epoch:
+          _getRemoteRecords("1970-01-01T00:00:00.413Z", function(remoteRecords) {
+            view_model.serviceDB = remoteRecords;
+            callback(view_model.serviceDB);
+          });
+        }
+      };
+    */
+
+
 
 
   });

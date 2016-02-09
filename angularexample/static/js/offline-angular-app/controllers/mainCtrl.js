@@ -3,79 +3,28 @@
 angular.module('angularTestTwo')
   .controller('mainCtrl', function($scope, offlineDB) {
 
-    /* $scope.updateThis = updateThis;
-    $scope.deleteThis = deleteThis;
-    $scope.newItem = newItem;
-    $scope.clearDB = clearDB; */
+    $scope.dataModel = [];
 
     $scope.createObject = createObject;
 
-    $scope.dataModel = [];
 
-    offlineDB.establishIndexedDB(function() {
-      offlineDB.getInitialData(function(dataModel) {
-          $scope.dataModel = dataModel;
-          _updateToUI("Fetched Items from Service");
-      });
-    });
-
-    function transformObject() {
-      // return { 'id' : nextID, 'text': text, 'timestamp': (new Date().getTime()), 'clicked': false, 'uncheckedID' : true }
-      return "";
+    /* Controller observer-pattern function */
+    var updateCtrl = function(){
+      console.log("Ctrl function called");
+      $scope.dataModel = offlineDB.serviceDB;
+      _updateToUI("Updated");
     };
 
+    offlineDB.registerController(updateCtrl);
+
+
+    // Package an object and send to Service
     function createObject(localObject) {
-      localObject.id = _generateUUID();
-      localObject.timestamp = _generateTimestamp();
-
-      // Add to serviceDB (?);
-
-/*
-      offlineDB.addItem(localObject, function(returnedObject) {
-        $scope.dataModel.push(returnedObject);
-        _updateToUI("Added.");
-      });
-*/
-
+      localObject.timestamp = offlineDB.generateTimestamp();
+      var newObject = {pk: _generateUUID(), fields: localObject };
+      offlineDB.addItem(newObject);
     };
 
-
-/*
-    function clearDB() {
-      offlineDB.clearDB(function(returnedArray) {
-        if(Object.keys(returnedArray).length == 0) {
-            $scope.dataModel = [];
-            _updateToUI("Cleared");
-        }
-        else { console.log("Error: Returned array was not empty."); }
-      });
-    };
-
-    function newItem(item) {
-      alert("New item called");
-      offlineDB.createItem({name: item}, null, function(returnedObject) {
-        $scope.dataModel.push(returnedObject);
-        _updateToUI("Added.");
-      });
-    };
-
-    function updateThis(item) {
-      var sanitisedItem = item;
-      delete sanitisedItem.$$hashKey;
-      offlineDB.updateItem(sanitisedItem, function(returnedItem) {
-        $scope.dataModel[$scope.dataModel.indexOf(item)] = returnedItem;
-        _updateToUI("Updated.");
-      });
-    };
-
-    function deleteThis(item) {
-      offlineDB.deleteItem(item, function() {
-        $scope.dataModel.splice($scope.dataModel.indexOf(item), 1);
-        _updateToUI("Deleted.");
-      })
-    };
-
-*/
 
 
     /* ---------- Private functions ---------- */
@@ -101,24 +50,5 @@ angular.module('angularTestTwo')
       return uuid;
     };
 
-    function _generateTimestamp() {
-      var d = new Date();
-      return d.toISOString();
-    };
-
-/*
-    (function timeout() {
-      setTimeout(function() {
-        offlineDB.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
-          // POTENTIAL OPTIMISATION
-          //if(returnedData != $scope.dataModel) $scope.dataModel = returnedData;
-          $scope.dataModel = returnedData;
-          _updateToUI("Synced with Server");
-        });
-        timeout();
-      }, 4000);
-
-      })();
-    */
 
   });

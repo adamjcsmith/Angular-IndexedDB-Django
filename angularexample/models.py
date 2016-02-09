@@ -8,7 +8,7 @@ class Element (models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     #id = models.AutoField(primary_key=True)
     clicked = models.BooleanField(default=False)
-    serverTimestamp = models.DateTimeField(auto_now=True)
+    timestamp = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
