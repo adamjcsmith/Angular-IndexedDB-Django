@@ -80,8 +80,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function newSyncData(callback) {
 
-      //alert("view_model.lastChecked is: " + view_model.lastChecked);
-
       _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
 
         if(returnedRecords.length > 0) {
@@ -104,15 +102,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
             // Use _determinePatchOperation to sort creates from updates
             // Cover the case where serviceDB is empty - eg this is the first loop through.
 
-            var operations = _determinePatchOperation(returnedRecords);
-            alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
-            // This is correct.
-
-            // Do the serviceDB update / create operations here.
-            _updatesToServiceDB(operations.updateOperations);
-            _pushToServiceDB(operations.createOperations);
+            _patchServiceDB(returnedRecords);
             callback();
-
           }
 
           //alert("result.safeLocal was: " + result.safeLocal);
@@ -135,6 +126,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       });
 
+    };
+
+
+    function _patchServiceDB(remoteRecords) {
+      var operations = _determinePatchOperation(remoteRecords);
+      alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
+      // Do the serviceDB update / create operations here.
+      _updatesToServiceDB(operations.updateOperations);
+      _pushToServiceDB(operations.createOperations);
     };
 
 
