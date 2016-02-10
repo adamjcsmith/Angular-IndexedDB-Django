@@ -2,19 +2,23 @@
 
 angular.module('angularTestTwo').service('offlineDB', function($http) {
 
-    // Variables
+    // Service Variables
     var view_model = this;
     view_model.idb = null;
     view_model.serviceDB = []; /* Local image of the data */
     view_model.observerCallbacks = [];
-    //view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z"); /* Initially the epoch */
-    view_model.lastChecked = new Date("2016-01-30T10:28:05.413Z").toISOString();
+    view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z").toISOString(); /* Initially the epoch */
+    //view_model.lastChecked = new Date("2016-01-30T10:28:05.413Z").toISOString();
 
     // Public Functions
     view_model.syncData = syncData;
     view_model.registerController = registerController;
     view_model.addItem = addItem;
     view_model.generateTimestamp = generateTimestamp;
+
+    // Parameters
+    view_model.updateAPI = "/angularexample/updateElements";
+    view_model.createAPI = "/angularexample/createElements";
 
     // Determine IndexedDB Support
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
@@ -82,18 +86,31 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
 
+        // Update lastChecked to ensure a consistent refresh cycle:
+        var localNewData = _getRecentRecords();
+        view_model.lastChecked = generateTimestamp();
+
         if(returnedRecords.length > 0) {
 
-          var localNewData = _getRecentRecords();
-          var result;
           if(localNewData.length > 0) {
             // This means that there's new local data and new remote data.
             // We need to patch this data both locally and remotely.
             // Use _compareRecords to determine collisions.
 
-            result = _compareRecords(localNewData, returnedRecords);
+            var result = _compareRecords(localNewData, returnedRecords);
             // We have safe local records, safe remote records here etc.
             // We need to determine patch operations of both.
+
+            _patchServiceDB(result.safeRemote);
+            // Now patch remote here!
+
+            // First let's determine the patch operation:
+            var patchOperations = _determinePatchOperation(result.safeLocal);
+            // Now try patching remote with CREATE operations:
+            console.log("Now attempting to post the array, of " + patchOperations.createOperations.length + " size, to remote.");
+            _postArrayToRemote(view_model.createAPI, patchOperations.createOperations, function() {
+              alert("Posted the array");
+            });
 
           }
           else {
@@ -106,22 +123,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
             callback();
           }
 
-          //alert("result.safeLocal was: " + result.safeLocal);
-          //var remotePatch = _determinePatchOperation(result.safeLocal);
-
-          //var remotePatch = _determinePatchOperation(result.safeLocal);
-
-          // Now we have safe CREATE and UPDATE results to do remotely:
-          //for(var i=0; i<)
-
-
           // Do remote patching here.
           // Update IndexedDB here with a bulk put ()
           // Then copy to serviceDB.
-          //callback({status: true, localPatch: [] });
         }
         else {
-          // escape route...
+          // This means there were no new remote records.
+          // All local patches to remote will be safe.
+
+
         }
 
       });
@@ -131,12 +141,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _patchServiceDB(remoteRecords) {
       var operations = _determinePatchOperation(remoteRecords);
-      alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
-      // Do the serviceDB update / create operations here.
+      //alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
+
+      console.log("... and there were: " + operations.updateOperations.length + " update ops, and " + operations.createOperations.length + " create ops");
+
       _updatesToServiceDB(operations.updateOperations);
       _pushToServiceDB(operations.createOperations);
     };
-
 
     function _pushToServiceDB(array) {
       for(var i=0; i<array.length; i++) {
@@ -146,7 +157,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _updatesToServiceDB(array) {
       for(var i=0; i<array.length; i++) {
-        var matchID = _.findIndex(view_model.serviceDB, array[i].pk);
+        var matchID = _.findIndex(view_model.serviceDB, {"pk" : array[i].pk });
         if(matchID > -1) {
           view_model.serviceDB[matchID] = array[i]; // Replace whole record.
         }
@@ -158,7 +169,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       // Loop through the serviceDB (possibly using lodash _.filter) to derive records newer than last_checked.
       var localNew = _.filter(view_model.serviceDB, function(o) { var theDate = new Date(o.fields.timestamp); return theDate > view_model.lastChecked; });
       //alert("recent records were: " + localNew);
-      view_model.lastChecked = generateTimestamp;
       return localNew;
     };
 
@@ -251,11 +261,12 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     // Attempts to post data to a URL.
-    function _remoteCreate(record, callback) {
+    function _postArrayToRemote(url, array, callback) {
+      var transformedArray = angular.toJSON(array);
       $http({
           url: '/angularexample/createElements',
           method: "POST",
-          data: record,
+          data: transformedArray,
           headers: {'Content-Type': 'application/x-www-form-urlencoded' }
       })
       .then(function(response) { callback(true); },

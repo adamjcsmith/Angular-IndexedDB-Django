@@ -10,9 +10,8 @@ angular.module('angularTestTwo')
 
     /* Controller observer-pattern function */
     var updateCtrl = function(){
-      console.log("Ctrl function called");
       $scope.dataModel = offlineDB.serviceDB;
-      _updateToUI("Updated");
+      _updateToUI("Data Model Updated");
     };
 
     offlineDB.registerController(updateCtrl);
