@@ -19,8 +19,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.generateTimestamp = generateTimestamp;
 
     // Parameters
-    view_model.updateAPI = "/angularexample/updateElements";
-    view_model.createAPI = "/angularexample/createElements";
+    view_model.updateAPI = "/angularexample/updateElements/";
+    view_model.createAPI = "/angularexample/createElements/";
 
     // Determine IndexedDB Support
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
@@ -227,6 +227,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var updateOps = [];
       var createOps = [];
       for(var i=0; i<safeLocal.length; i++) {
+
+        // Handle when the local element is new:
+        if(!safeLocal[i].pk) {
+          safeLocal[i].pk = _generateUUID();
+          createOps.push(safeLocal[i]);
+          continue;
+        }
+
         var query = _.findIndex(view_model.serviceDB, {'pk' : safeLocal[i].pk });
         console.log("_determinePatchOperation query was: " + query);
         console.log("serviceDB length is: " + view_model.serviceDB.length);
@@ -294,12 +302,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Attempts to post data to a URL.
     function _postArrayToRemote(url, array, callback) {
-      var transformedArray = angular.toJSON(array);
+      var transformedArray = array;
+      console.log("The transformed array was: " + JSON.stringify(transformedArray));
       $http({
-          url: '/angularexample/createElements',
+          url: url,
           method: "POST",
           data: transformedArray,
-          headers: {'Content-Type': 'application/x-www-form-urlencoded' }
+          headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
       })
       .then(function(response) { callback(true); },
           function(response) { callback(false); }
@@ -381,6 +390,18 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Check Loop --------------- */
 
+    function _generateUUID() {
+      var d = new Date().getTime();
+      if(window.performance && typeof window.performance.now === "function"){
+          d += performance.now(); // use high-precision timer if available
+      }
+      var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = (d + Math.random()*16)%16 | 0;
+          d = Math.floor(d/16);
+          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+      return uuid;
+    };
 
     function generateTimestamp() {
       var d = new Date();

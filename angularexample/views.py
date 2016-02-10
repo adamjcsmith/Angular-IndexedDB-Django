@@ -8,7 +8,7 @@ import dateutil.parser
 
 from django.shortcuts import render
 from django.core import serializers
-from django.views.generic import TemplateView, FormView
+from django.views.generic import TemplateView, FormView, View
 from django.http import HttpResponse, JsonResponse
 import json
 
@@ -59,9 +59,43 @@ class ElementView(TemplateView):
             return HttpResponse(json, content_type='application/json')
 
 
-class CreateElementView():
+class CreateElementView(View):
+    def post(self, request):
+        #sentData = request.POST.getlist('')
+        #print(request.POST)
+        #print(sentData)
+
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        print(type(body))
+        #print(body)
+
+        for item in body:
+            print(item)
+            print(item['pk'])
+            e = Element(id=item['pk'], name=item['fields']['text'], clicked=False, timestamp=item['fields']['timestamp'])
+            e.save()
+            
+            # ADD ELEMENT HERE USING MODEL.add
+
+        #content = body['content']
+
+        #body is now the list!
+
+
+        #no need; iterate through the list instead...
+        #decodedData = json.loads(sentData)
+        #print(decodedData)
+        return HttpResponse("OK")
+
+
+
+'''
+class CreateElementView(View):
+    print("Got to the create element view")
     formset_class = formset_factory(CreateElementForm)
     def post(self, request):
+        print("Got to the post block")
         element_formset = self.formset_class(request.POST, prefix='element')
         if element_formset.is_valid():
             try:
@@ -71,6 +105,7 @@ class CreateElementView():
             except Exception as e:
                 return HttpResponseBadRequest(str(e))
         return HttpResponseBadRequest(element_formset.errors)
+'''
 
 
 '''
@@ -83,13 +118,8 @@ class ElementsLastUpdatedView(TemplateView):
 class EditElementView(TemplateView):
     def post(self, request):
         # Check for a parameter:
-        '''
 
 
-
-
-
-'''
 class MemorialEditView(AjaxableResponseMixin, AdminView):
     template_name = 'mapmanagement/edit/memorial-edit.html'
     success_template_name = 'mapmanagement/edit/memorial-edit.html'
@@ -117,10 +147,7 @@ class MemorialEditView(AjaxableResponseMixin, AdminView):
             except Exception as e:
                 return HttpResponseBadRequest(str(e))
         return HttpResponseBadRequest(memorial_formset.errors)
-'''
 
-
-'''
 class MemorialView(ViewOnlyView):                                           # ? What's ViewOnlyView?
     def get(self, request):
         layer = request.GET.get('layer')                                    # This gets the layer from the sent request object
