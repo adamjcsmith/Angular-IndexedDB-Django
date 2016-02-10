@@ -10,6 +10,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z").toISOString(); /* Initially the epoch */
     //view_model.lastChecked = new Date("2016-01-30T10:28:05.413Z").toISOString();
 
+    view_model.testEpoch = new Date("1970-01-01T00:00:00.413Z").toISOString();
+
     // Public Functions
     view_model.syncData = syncData;
     view_model.registerController = registerController;
@@ -25,7 +27,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function addItem(object) {
       alert("pushing " + JSON.stringify(object) + " to serviceDB");
-      view_model.serviceDB.push(object);
+      //view_model.serviceDB.push(object);
+      _pushToServiceDB([object]);
      };
 
     function registerController(ctrlCallback) {
@@ -84,6 +87,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function newSyncData(callback) {
 
+      console.log("Getting records since... " + view_model.lastChecked);
+
       _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
 
         // Update lastChecked to ensure a consistent refresh cycle:
@@ -97,9 +102,17 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
             // We need to patch this data both locally and remotely.
             // Use _compareRecords to determine collisions.
 
+            console.log("Detected that localNewData was larger than zero + that returnedRecords was larger than zero...");
+
+            localNewData = _stripAngularHashKeys(localNewData);
+
             var result = _compareRecords(localNewData, returnedRecords);
             // We have safe local records, safe remote records here etc.
             // We need to determine patch operations of both.
+
+            /* --------- WARNING !!!!!!!! ---------- */
+            // Shouldn't I determine the patch operations BEFORE patching to serviceDB? Review this.
+
 
             _patchServiceDB(result.safeRemote);
             // Now patch remote here!
@@ -130,6 +143,23 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         else {
           // This means there were no new remote records.
           // All local patches to remote will be safe.
+
+          // Check if there's new local data:
+
+          if(localNewData.length > 0) {
+
+            localNewData = _stripAngularHashKeys(localNewData);
+            console.log("New data was detected in the sync loop...");
+            var patchOps = _determinePatchOperation(localNewData);
+
+            console.log("create ops were: " + JSON.stringify(patchOps.createOperations) + " and update ops were: " + JSON.stringify(patchOps.updateOperations));
+
+            // Patch to remote here:
+            _postArrayToRemote(view_model.createAPI, patchOps.createOperations, function() {
+              alert("Posted the array");
+            });
+
+          }
 
 
         }
@@ -167,8 +197,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _getRecentRecords() {
       // Loop through the serviceDB (possibly using lodash _.filter) to derive records newer than last_checked.
-      var localNew = _.filter(view_model.serviceDB, function(o) { var theDate = new Date(o.fields.timestamp); return theDate > view_model.lastChecked; });
+      var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > view_model.lastChecked; });
       //alert("recent records were: " + localNew);
+      //console.log("localNew was: " + JSON.stringify(localNew));
+      //console.log("serviceDB length is: " + view_model.serviceDB.length);
       return localNew;
     };
 
@@ -353,6 +385,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function generateTimestamp() {
       var d = new Date();
       return d.toISOString();
+    };
+
+    function _stripAngularHashKeys(array) {
+      for(var i=0; i<array.length; i++) {
+        delete array[i].$$hashKey;
+      }
+      return array;
     };
 
 
