@@ -11,7 +11,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.testEpoch = new Date("1970-01-01T00:00:00.413Z").toISOString();
 
     // Public Functions
-    view_model.syncData = syncData;
     view_model.registerController = registerController;
     view_model.addItem = addItem;
     view_model.generateTimestamp = generateTimestamp;
@@ -66,7 +65,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
        });
     };
 
-
     function establishIndexedDB(callback) {
       if(!_hasIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
 
@@ -88,7 +86,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       };
       request.onerror = function() { console.error(this.error); };
     };
-
 
     function newSyncTwo(callback) {
       // 1. Check if there's new local data:
@@ -143,7 +140,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       }
     };
 
-
     function _getLocalRecords(sinceTime) {
       var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
       return localNew;
@@ -184,45 +180,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return { updateOperations: updateOps, createOperations: createOps };
     };
 
-
-    /* To be deprecated in a future edit */
-    function syncData(lastTimestamp, callback) {
-
-      console.log("Refresh data was called somewhere");
-
-      // Get new remote records:
-      _getRemoteRecords(lastTimestamp, function(returnedRecords) {
-
-        console.log("Remote records worked");
-
-        // If IndexedDB support:
-        if(_hasIndexedDB()) {
-
-          console.log("check Indexed db worked");
-
-          console.log("Returned records is: " + JSON.stringify(returnedRecords));
-
-          // Replace affected records in IndexedDB:
-          _putArrayToIndexedDB(returnedRecords, function() {
-
-              console.log("Bulk put worked");
-
-            // Get the whole of IndexedDB:
-            _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(currentIndexedDB) {
-
-                console.log("Get from IndexedDB worked");
-
-              view_model.serviceDB = currentIndexedDB;
-              callback(view_model.serviceDB);
-            });
-          });
-        }
-        else {
-          // No IndexedDB support. So perform offline merge here...
-        }
-
-      });
-    };
 
     /* --------------- Remote (Private) --------------- */
 
