@@ -8,8 +8,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.serviceDB = []; /* Local image of the data */
     view_model.observerCallbacks = [];
     view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z").toISOString(); /* Initially the epoch */
-    //view_model.lastChecked = new Date("2016-01-30T10:28:05.413Z").toISOString();
-
     view_model.testEpoch = new Date("1970-01-01T00:00:00.413Z").toISOString();
 
     // Public Functions
@@ -18,7 +16,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.addItem = addItem;
     view_model.generateTimestamp = generateTimestamp;
     view_model.updateItem = updateItem;
-
     view_model.newSyncTwo = newSyncTwo;
 
     // Parameters
@@ -63,11 +60,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
      };
 
     function notifyObservers() {
-         angular.forEach(view_model.observerCallbacks, function(callback){
-           console.log("callback called...");
-           callback();
-         });
-       };
+       angular.forEach(view_model.observerCallbacks, function(callback){
+         console.log("callback called...");
+         callback();
+       });
+    };
 
 
     function establishIndexedDB(callback) {
@@ -94,15 +91,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
     function newSyncTwo(callback) {
-
       // 1. Check if there's new local data:
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
-
       // 2. Then check if there's remote data:
       _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
-
         if(returnedRecords.length > 0 ) {
-
             if(newLocalRecords.length > 0) {
               console.log("New remote and local records were detected.");
               var comp = _compareRecords(newLocalRecords, returnedRecords);
@@ -114,120 +107,23 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
               view_model.lastChecked = generateTimestamp();
               callback();
             }
-
         } else {
           // Patch to remote only.
           if(newLocalRecords.length == 0) { callback(); return; }
           console.log("New local records were detected.");
           var ops = _determinePatchOperation(newLocalRecords);
           _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-
             _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
               view_model.lastChecked = generateTimestamp();
               callback();
             });
-
           });
         }
-
       });
-
     };
-
-
-    /* To be deprecated in a future edit */
-    function newSyncData(callback) {
-
-      console.log("Getting records since... " + view_model.lastChecked);
-
-      _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
-
-        // Update lastChecked to ensure a consistent refresh cycle:
-        var localNewData = _getLocalRecords(view_model.lastChecked);
-        view_model.lastChecked = generateTimestamp();
-
-        if(returnedRecords.length > 0) {
-
-          if(localNewData.length > 0) {
-            // This means that there's new local data and new remote data.
-            // We need to patch this data both locally and remotely.
-            // Use _compareRecords to determine collisions.
-
-            console.log("Detected that localNewData was larger than zero + that returnedRecords was larger than zero...");
-
-            localNewData = _stripAngularHashKeys(localNewData);
-
-            console.log("newSyncData: localNewData was: " + JSON.stringify(localNewData));
-
-            var result = _compareRecords(localNewData, returnedRecords);
-            // We have safe local records, safe remote records here etc.
-            // We need to determine patch operations of both.
-
-            /* --------- WARNING !!!!!!!! ---------- */
-            // Shouldn't I determine the patch operations BEFORE patching to serviceDB? Review this.
-            var patchOperations = _determinePatchOperation(result.safeLocal);
-
-            _patchServiceDB(result.safeRemote);
-            // Now patch remote here!
-
-            // First let's determine the patch operation:
-            // Now try patching remote with CREATE operations:
-            console.log("Now attempting to post the array, of " + patchOperations.createOperations.length + " size, to remote.");
-            _postArrayToRemote(view_model.createAPI, patchOperations.createOperations, function() {
-              alert("Posted the array");
-            });
-
-          }
-          else {
-            // This means that there's no new local data, but there's new remote data.
-            // Means that we should patch this data to serviceDB.
-            // Use _determinePatchOperation to sort creates from updates
-            // Cover the case where serviceDB is empty - eg this is the first loop through.
-
-            _patchServiceDB(returnedRecords);
-            callback();
-          }
-
-          // Do remote patching here.
-          // Update IndexedDB here with a bulk put ()
-          // Then copy to serviceDB.
-        }
-        else {
-          // This means there were no new remote records.
-          // All local patches to remote will be safe.
-
-          // Check if there's new local data:
-
-          if(localNewData.length > 0) {
-
-            localNewData = _stripAngularHashKeys(localNewData);
-            console.log("New data was detected in the sync loop...");
-            var patchOps = _determinePatchOperation(localNewData);
-
-            console.log("create ops were: " + JSON.stringify(patchOps.createOperations) + " and update ops were: " + JSON.stringify(patchOps.updateOperations));
-
-            // Patch to remote here:
-            _postArrayToRemote(view_model.createAPI, patchOps.createOperations, function() {
-              alert("Posted the array");
-            });
-
-          }
-
-
-        }
-
-      });
-
-    };
-
-
 
     function _patchServiceDB(remoteRecords) {
       var operations = _determinePatchOperation(remoteRecords);
-      //alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
-
-      //console.log("... and there were: " + operations.updateOperations.length + " update ops, and " + operations.createOperations.length + " create ops");
-
       _updatesToServiceDB(operations.updateOperations);
       _pushToServiceDB(operations.createOperations);
     };
@@ -249,15 +145,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
     function _getLocalRecords(sinceTime) {
-      // Loop through the serviceDB (possibly using lodash _.filter) to derive records newer than last_checked.
       var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
-      //alert("recent records were: " + localNew);
-      //console.log("localNew was: " + JSON.stringify(localNew));
-      //console.log("serviceDB length is: " + view_model.serviceDB.length);
-
-      //console.log("_getLocalRecords output was: " + JSON.stringify(localNew));
-      //console.log("For diagnostics, the serviceDB was: " + JSON.stringify(view_model.serviceDB));
-
       return localNew;
     };
 
@@ -283,21 +171,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _determinePatchOperation(safeLocal) {
       var updateOps = [];
       var createOps = [];
-
-      //console.log("safeLocal was: " + JSON.stringify(safeLocal));
-
       for(var i=0; i<safeLocal.length; i++) {
-
-        // Handle when the local element is new:
         if(!safeLocal[i].pk) {
           safeLocal[i].pk = _generateUUID();
           createOps.push(safeLocal[i]);
           continue;
         }
-
         var query = _.findIndex(view_model.serviceDB, {'pk' : safeLocal[i].pk });
-        //console.log("_determinePatchOperation query was: " + query);
-        //console.log("serviceDB length is: " + view_model.serviceDB.length);
         if(query > -1 ) updateOps.push(safeLocal[i]);
         else createOps.push(safeLocal[i]);
       }
@@ -363,7 +243,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Attempts to post data to a URL.
     function _postArrayToRemote(url, array, callback) {
       var transformedArray = array;
-      //console.log("The transformed array was: " + JSON.stringify(transformedArray));
       $http({
           url: url,
           method: "POST",
@@ -448,7 +327,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return _newIDBTransaction().objectStore(name);
     };
 
-    /* --------------- Check Loop --------------- */
+    /* --------------- Utilities --------------- */
 
     function _generateUUID() {
       var d = new Date().getTime();
@@ -475,6 +354,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return array;
     };
 
+    /* --------------- Sync Loop -------------- */
 
 /*
     (function syncLoop() {
@@ -486,41 +366,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       }, 4000);
       })();
 */
-
-
-  /* --------------- Recycling -------------- */
-
-  /*
-      function getInitialData(callback) {
-        // If IndexedDB is supported:
-        if(_hasIndexedDB) {
-          // If IDB storage is not yet been instantiated:
-          if(view_model.idb == null) {
-            establishIndexedDB(function() {
-              _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
-                  view_model.serviceDB = IDBRecords;
-                  callback(view_model.serviceDB);
-              });
-            })
-          } else {
-            _getRangeFromIndexedDB("1970-01-01T00:00:00.413Z", function(IDBRecords) {
-                view_model.serviceDB = IDBRecords;
-                callback(view_model.serviceDB);
-            });
-          }
-
-        }
-        else {
-          // Check for remote records since the epoch:
-          _getRemoteRecords("1970-01-01T00:00:00.413Z", function(remoteRecords) {
-            view_model.serviceDB = remoteRecords;
-            callback(view_model.serviceDB);
-          });
-        }
-      };
-    */
-
-
 
 
   });
