@@ -9,9 +9,10 @@ class Element (models.Model):
     #id = models.AutoField(primary_key=True)
     clicked = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now=True)
+    deleted = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.name
+        return uuid.UUID.hex(self.id)
 
 '''
 class LastModified (models.Model):

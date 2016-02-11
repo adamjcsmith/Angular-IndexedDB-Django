@@ -17,6 +17,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.registerController = registerController;
     view_model.addItem = addItem;
     view_model.generateTimestamp = generateTimestamp;
+    view_model.updateItem = updateItem;
+
+    view_model.newSyncTwo = newSyncTwo;
 
     // Parameters
     view_model.updateAPI = "/angularexample/updateElements/";
@@ -29,6 +32,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
       view_model.serviceDB.push(object);
       //_pushToServiceDB([object]);
+     };
+
+     function updateItem(object) {
+       console.log("Updating this record: " + JSON.stringify(object));
+       _updatesToServiceDB([object]);
      };
 
     function registerController(ctrlCallback) {
@@ -95,11 +103,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
         if(returnedRecords.length > 0 ) {
 
-          console.log("New remote records were detected.");
-
-            if(newLocalRecords > 0) {
-              // In current test cases this should NEVER happen.
+            if(newLocalRecords.length > 0) {
+              console.log("New remote and local records were detected.");
+              var comp = _compareRecords(newLocalRecords, returnedRecords);
+              console.log("The comparison was: " + JSON.stringify(comp));
+              callback();
             } else {
+              console.log("New remote records (only) were detected.");
               _patchServiceDB(returnedRecords);
               view_model.lastChecked = generateTimestamp();
               callback();
@@ -111,8 +121,12 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           console.log("New local records were detected.");
           var ops = _determinePatchOperation(newLocalRecords);
           _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-            view_model.lastChecked = generateTimestamp();
-            callback();
+
+            _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
+              view_model.lastChecked = generateTimestamp();
+              callback();
+            });
+
           });
         }
 
@@ -243,7 +257,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       //console.log("_getLocalRecords output was: " + JSON.stringify(localNew));
       //console.log("For diagnostics, the serviceDB was: " + JSON.stringify(view_model.serviceDB));
-
 
       return localNew;
     };
@@ -463,22 +476,16 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
+/*
     (function syncLoop() {
       setTimeout(function() {
         newSyncTwo(function() {
           notifyObservers();
         });
-        /*
-        view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
-          view_model.serviceDB = returnedData;
-          notifyObservers();
-          _getLocalRecords();
-        });
-        */
         syncLoop();
       }, 4000);
       })();
-
+*/
 
 
   /* --------------- Recycling -------------- */

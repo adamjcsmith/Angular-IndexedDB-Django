@@ -11,6 +11,7 @@ from django.core import serializers
 from django.views.generic import TemplateView, FormView, View
 from django.http import HttpResponse, JsonResponse
 import json
+import uuid
 
 from .models import Element
 from .forms import CreateElementForm
@@ -73,20 +74,32 @@ class CreateElementView(View):
         for item in body:
             print(item)
             print(item['pk'])
-            e = Element(id=item['pk'], text=item['fields']['text'], clicked=False, timestamp=item['fields']['timestamp'])
+            e = Element(id=item['pk'], text=item['fields']['text'], clicked=False, timestamp=item['fields']['timestamp'], deleted=False)
             e.save()
-
-            # ADD ELEMENT HERE USING MODEL.add
-
-        #content = body['content']
-
-        #body is now the list!
+        return HttpResponse("Successful")
 
 
-        #no need; iterate through the list instead...
-        #decodedData = json.loads(sentData)
-        #print(decodedData)
-        return HttpResponse("OK")
+class UpdateElementView(View):
+    def post(self, request):
+
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        print(type(body))
+
+        for item in body:
+            print(item)
+            print(item['pk'])
+            try:
+                strippedID = uuid.UUID(item['pk'])
+                e = Element.objects.get(id=strippedID)
+                e.text=item['fields']['text']
+                e.clicked=item['fields']['clicked']
+                e.timestamp=item['fields']['timestamp']
+                e.deleted=item['fields']['deleted']
+                e.save()
+            except Exception as e:
+                return HttpResponseBadRequest(str(e))
+        return HttpResponse("Successful")
 
 
 

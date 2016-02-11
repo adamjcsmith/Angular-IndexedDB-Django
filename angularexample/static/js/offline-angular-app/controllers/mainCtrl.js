@@ -7,6 +7,11 @@ angular.module('angularTestTwo')
 
     $scope.createObject = createObject;
 
+    $scope.forceRefresh = forceRefresh;
+
+    $scope.updateObject = updateObject;
+
+    $scope.deleteObject = deleteObject;
 
     /* Controller observer-pattern function */
     var updateCtrl = function(){
@@ -23,6 +28,25 @@ angular.module('angularTestTwo')
       localObject.timestamp = offlineDB.generateTimestamp();
       var newObject = { fields: localObject };
       offlineDB.addItem(newObject);
+    };
+
+    function updateObject(localObject) {
+      console.log("Update object called, object was: " + JSON.stringify(localObject));
+      localObject.fields.timestamp = offlineDB.generateTimestamp();
+      offlineDB.updateItem(localObject);
+    }
+
+    function deleteObject(localObject) {
+      console.log("Delete object called, object was: " + JSON.stringify(localObject));
+      localObject.fields.deleted = true;
+      localObject.fields.timestamp = offlineDB.generateTimestamp();
+      offlineDB.updateItem(localObject);
+    }
+
+    function forceRefresh() {
+      offlineDB.newSyncTwo(function() {
+        updateCtrl();
+      });
     };
 
 

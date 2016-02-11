@@ -1,10 +1,10 @@
 <div class="ui cards">
 
-  <div ng-class="{'card': true, 'off': !person.fields.clicked}" ng-repeat="person in dataModel">
+  <div ng-class="{'card': true, 'off': !person.fields.clicked}" ng-hide="person.fields.deleted" ng-repeat="person in dataModel">
 
     <div class="content">
       <!-- <img class="right floated mini ui image" src="https://unsplash.it/100?random"> -->
-      <i class="close link right floated icon" ng-click="deleteThis(person)"></i>
+      <i class="close link right floated icon" ng-click="deleteObject(person)"></i>
       <div class="header">
         {{ person.fields.text }}
       </div>
@@ -17,8 +17,8 @@
     </div>
     <div class="extra content">
       <div class="ui two buttons">
-        <div class="ui grey button" ng-click="updateThis(person)" ng-class="{'basic' : person.fields.clicked}">Off</div>
-        <div class="ui button" ng-click="updateThis(person)" ng-class="{'basic' : !person.fields.clicked, 'teal' : person.fields.clicked, 'grey' : !person.fields.clicked}">On</div>
+        <div class="ui grey button" ng-click="person.fields.clicked = false; updateObject(person)" ng-class="{'basic' : person.fields.clicked}">Off</div>
+        <div class="ui button" ng-click="person.fields.clicked = true; updateObject(person)" ng-class="{'basic' : !person.fields.clicked, 'teal' : person.fields.clicked, 'grey' : !person.fields.clicked}">On</div>
       </div>
     </div>
 
