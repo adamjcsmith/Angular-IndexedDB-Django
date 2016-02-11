@@ -26,9 +26,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 
     function addItem(object) {
-      alert("pushing " + JSON.stringify(object) + " to serviceDB");
-      //view_model.serviceDB.push(object);
-      _pushToServiceDB([object]);
+      console.log("pushing " + JSON.stringify(object) + " to serviceDB");
+      view_model.serviceDB.push(object);
+      //_pushToServiceDB([object]);
      };
 
     function registerController(ctrlCallback) {
@@ -85,6 +85,43 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
+    function newSyncTwo(callback) {
+
+      // 1. Check if there's new local data:
+      var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
+
+      // 2. Then check if there's remote data:
+      _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
+
+        if(returnedRecords.length > 0 ) {
+
+          console.log("New remote records were detected.");
+
+            if(newLocalRecords > 0) {
+              // In current test cases this should NEVER happen.
+            } else {
+              _patchServiceDB(returnedRecords);
+              view_model.lastChecked = generateTimestamp();
+              callback();
+            }
+
+        } else {
+          // Patch to remote only.
+          if(newLocalRecords.length == 0) { callback(); return; }
+          console.log("New local records were detected.");
+          var ops = _determinePatchOperation(newLocalRecords);
+          _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
+            view_model.lastChecked = generateTimestamp();
+            callback();
+          });
+        }
+
+      });
+
+    };
+
+
+    /* To be deprecated in a future edit */
     function newSyncData(callback) {
 
       console.log("Getting records since... " + view_model.lastChecked);
@@ -92,7 +129,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
 
         // Update lastChecked to ensure a consistent refresh cycle:
-        var localNewData = _getRecentRecords();
+        var localNewData = _getLocalRecords(view_model.lastChecked);
         view_model.lastChecked = generateTimestamp();
 
         if(returnedRecords.length > 0) {
@@ -106,19 +143,20 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
             localNewData = _stripAngularHashKeys(localNewData);
 
+            console.log("newSyncData: localNewData was: " + JSON.stringify(localNewData));
+
             var result = _compareRecords(localNewData, returnedRecords);
             // We have safe local records, safe remote records here etc.
             // We need to determine patch operations of both.
 
             /* --------- WARNING !!!!!!!! ---------- */
             // Shouldn't I determine the patch operations BEFORE patching to serviceDB? Review this.
-
+            var patchOperations = _determinePatchOperation(result.safeLocal);
 
             _patchServiceDB(result.safeRemote);
             // Now patch remote here!
 
             // First let's determine the patch operation:
-            var patchOperations = _determinePatchOperation(result.safeLocal);
             // Now try patching remote with CREATE operations:
             console.log("Now attempting to post the array, of " + patchOperations.createOperations.length + " size, to remote.");
             _postArrayToRemote(view_model.createAPI, patchOperations.createOperations, function() {
@@ -169,11 +207,12 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
+
     function _patchServiceDB(remoteRecords) {
       var operations = _determinePatchOperation(remoteRecords);
       //alert("The operations to create were: " + JSON.stringify(operations.createOperations) + ", and the operations to update were: " + JSON.stringify(operations.updateOperations));
 
-      console.log("... and there were: " + operations.updateOperations.length + " update ops, and " + operations.createOperations.length + " create ops");
+      //console.log("... and there were: " + operations.updateOperations.length + " update ops, and " + operations.createOperations.length + " create ops");
 
       _updatesToServiceDB(operations.updateOperations);
       _pushToServiceDB(operations.createOperations);
@@ -195,12 +234,17 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
-    function _getRecentRecords() {
+    function _getLocalRecords(sinceTime) {
       // Loop through the serviceDB (possibly using lodash _.filter) to derive records newer than last_checked.
-      var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > view_model.lastChecked; });
+      var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
       //alert("recent records were: " + localNew);
       //console.log("localNew was: " + JSON.stringify(localNew));
       //console.log("serviceDB length is: " + view_model.serviceDB.length);
+
+      //console.log("_getLocalRecords output was: " + JSON.stringify(localNew));
+      //console.log("For diagnostics, the serviceDB was: " + JSON.stringify(view_model.serviceDB));
+
+
       return localNew;
     };
 
@@ -226,6 +270,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _determinePatchOperation(safeLocal) {
       var updateOps = [];
       var createOps = [];
+
+      //console.log("safeLocal was: " + JSON.stringify(safeLocal));
+
       for(var i=0; i<safeLocal.length; i++) {
 
         // Handle when the local element is new:
@@ -236,8 +283,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         }
 
         var query = _.findIndex(view_model.serviceDB, {'pk' : safeLocal[i].pk });
-        console.log("_determinePatchOperation query was: " + query);
-        console.log("serviceDB length is: " + view_model.serviceDB.length);
+        //console.log("_determinePatchOperation query was: " + query);
+        //console.log("serviceDB length is: " + view_model.serviceDB.length);
         if(query > -1 ) updateOps.push(safeLocal[i]);
         else createOps.push(safeLocal[i]);
       }
@@ -303,7 +350,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Attempts to post data to a URL.
     function _postArrayToRemote(url, array, callback) {
       var transformedArray = array;
-      console.log("The transformed array was: " + JSON.stringify(transformedArray));
+      //console.log("The transformed array was: " + JSON.stringify(transformedArray));
       $http({
           url: url,
           method: "POST",
@@ -418,14 +465,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     (function syncLoop() {
       setTimeout(function() {
-        newSyncData(function() {
+        newSyncTwo(function() {
           notifyObservers();
         });
         /*
         view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
           view_model.serviceDB = returnedData;
           notifyObservers();
-          _getRecentRecords();
+          _getLocalRecords();
         });
         */
         syncLoop();

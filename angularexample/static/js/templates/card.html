@@ -4,9 +4,8 @@
 
     <div class="content">
       <i class="close link right floated icon" ng-click="deleteThis(item)"></i>
-      <div class="header">{{ item.fields.name }}</div>
+      <div class="header">{{ item.pk }}</div>
       <div class="meta">
-        {{item.fields.serverTimestamp}}
         <h6>{{item.pk}}</h6>
       </div>
       <div class="description">{{ item.company.catchPhrase }}</div>

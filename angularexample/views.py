@@ -73,9 +73,9 @@ class CreateElementView(View):
         for item in body:
             print(item)
             print(item['pk'])
-            e = Element(id=item['pk'], name=item['fields']['text'], clicked=False, timestamp=item['fields']['timestamp'])
+            e = Element(id=item['pk'], text=item['fields']['text'], clicked=False, timestamp=item['fields']['timestamp'])
             e.save()
-            
+
             # ADD ELEMENT HERE USING MODEL.add
 
         #content = body['content']
