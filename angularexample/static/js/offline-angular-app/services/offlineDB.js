@@ -2,13 +2,20 @@
 
 angular.module('angularTestTwo').service('offlineDB', function($http) {
 
-    // Service Variables
     var view_model = this;
+
+    // Parameters
+    view_model.autoSync = 0; /* Set to zero for no auto synchronisation */
+    view_model.pushSync = true;
+    view_model.initialSync = true;
+    view_model.updateAPI = "/angularexample/updateElements/";
+    view_model.createAPI = "/angularexample/createElements/";
+
+    // Service Variables
     view_model.idb = null;
     view_model.serviceDB = []; /* Local image of the data */
     view_model.observerCallbacks = [];
     view_model.lastChecked = new Date("1970-01-01T00:00:00.413Z").toISOString(); /* Initially the epoch */
-    view_model.testEpoch = new Date("1970-01-01T00:00:00.413Z").toISOString();
 
     // Public Functions
     view_model.registerController = registerController;
@@ -17,52 +24,50 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.updateItem = updateItem;
     view_model.newSyncTwo = newSyncTwo;
 
-    // Parameters
-    view_model.updateAPI = "/angularexample/updateElements/";
-    view_model.createAPI = "/angularexample/createElements/";
 
     // Determine IndexedDB Support
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 
     function addItem(object) {
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
-      view_model.serviceDB.push(object);
-      //_pushToServiceDB([object]);
+      _pushToServiceDB([object]);
+      if(view_model.pushSync) newSyncTwo(notifyObservers);
      };
 
-     function updateItem(object) {
-       console.log("Updating this record: " + JSON.stringify(object));
-       _updatesToServiceDB([object]);
+    function updateItem(object) {
+      console.log("Updating this record: " + JSON.stringify(object));
+      _updatesToServiceDB([object]);
+      if(view_model.pushSync) newSyncTwo(notifyObservers);
      };
 
     function registerController(ctrlCallback) {
-       if(view_model.idb == null) {
-         establishIndexedDB(function() {
-           view_model.observerCallbacks.push(ctrlCallback);
-           // Temporary
-           /*
-           view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
-             view_model.serviceDB = returnedData;
+      if(view_model.idb == null) {
+        establishIndexedDB(function() {
+          view_model.observerCallbacks.push(ctrlCallback);
+
+          if(view_model.initialSync) {
+            view_model.newSyncTwo(function() {
+              ctrlCallback();
+            });
+        }
+
+        });
+      } else {
+        view_model.observerCallbacks.push(ctrlCallback);
+
+        if(view_model.initialSync) {
+          view_model.newSyncTwo(function() {
              ctrlCallback();
-           }); */
-         });
-       }
-       else {
-         view_model.observerCallbacks.push(ctrlCallback);
-         // Temporary
-         /*
-         view_model.syncData("1970-01-01T00:00:00.413Z", function(returnedData) {
-           view_model.serviceDB = returnedData;
-           ctrlCallback();
-         }); */
+           });
+        }
+
        }
      };
 
     function notifyObservers() {
-       angular.forEach(view_model.observerCallbacks, function(callback){
-         console.log("callback called...");
-         callback();
-       });
+      angular.forEach(view_model.observerCallbacks, function(callback){
+        callback();
+      });
     };
 
     function establishIndexedDB(callback) {
@@ -126,23 +131,18 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _pushToServiceDB(array) {
-      for(var i=0; i<array.length; i++) {
-        view_model.serviceDB.push(array[i]);
-      }
+      for(var i=0; i<array.length; i++) view_model.serviceDB.push(array[i]);
     };
 
     function _updatesToServiceDB(array) {
       for(var i=0; i<array.length; i++) {
         var matchID = _.findIndex(view_model.serviceDB, {"pk" : array[i].pk });
-        if(matchID > -1) {
-          view_model.serviceDB[matchID] = array[i]; // Replace whole record.
-        }
+        if(matchID > -1) view_model.serviceDB[matchID] = array[i];
       }
     };
 
     function _getLocalRecords(sinceTime) {
-      var localNew = _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
-      return localNew;
+      return _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
     };
 
 
@@ -152,7 +152,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var safeRemote = remoteNew;
       var safeLocal = [];
       for(var i=0; i<localNew.length; i++) {
-        var matchID = -1;
         var matchID = _.findIndex(safeRemote, ['pk', localNew[i].pk]);
         if(matchID > -1) {
           conflictingRecords.push(safeRemote[matchID]);
@@ -190,10 +189,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         })
         .then(
           function successCallback(response) {
-            if(response.data.length > 0) { callback(response.data); }
-            else { callback(response.data); }
+            if(response.data.length > 0) callback(response.data);
+            else callback(response.data);
         }, function errorCallback(response) {
-          callback([]); /* If the remote lookup was unsuccessful, return blank array */
+          callback([]); /* Return blank array */
         });
     };
 
@@ -313,16 +312,16 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Sync Loop -------------- */
 
-/*
-    (function syncLoop() {
-      setTimeout(function() {
-        newSyncTwo(function() {
-          notifyObservers();
-        });
-        syncLoop();
-      }, 4000);
+    if(view_model.autoSync > 0 && parseInt(view_model.autoSync) === view_model.autoSync) {
+      (function syncLoop() {
+        setTimeout(function() {
+          newSyncTwo(function() {
+            notifyObservers();
+          });
+          syncLoop();
+        }, view_model.autoSync);
       })();
-*/
+    }
 
 
   });
