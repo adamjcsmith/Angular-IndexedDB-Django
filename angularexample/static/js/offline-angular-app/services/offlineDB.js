@@ -24,7 +24,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.updateItem = updateItem;
     view_model.newSyncTwo = newSyncTwo;
 
-
     // Determine IndexedDB Support
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 
@@ -44,23 +43,17 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       if(view_model.idb == null) {
         establishIndexedDB(function() {
           view_model.observerCallbacks.push(ctrlCallback);
-
-          if(view_model.initialSync) {
-            view_model.newSyncTwo(function() {
-              ctrlCallback();
-            });
-        }
-
+          if(!view_model.initialSync) return;
+          view_model.newSyncTwo(function() {
+            ctrlCallback();
+          });
         });
       } else {
         view_model.observerCallbacks.push(ctrlCallback);
-
-        if(view_model.initialSync) {
-          view_model.newSyncTwo(function() {
-             ctrlCallback();
-           });
-        }
-
+        if(!view_model.initialSync) return;
+        view_model.newSyncTwo(function() {
+          ctrlCallback();
+        });
        }
      };
 
@@ -71,10 +64,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function establishIndexedDB(callback) {
-      if(!_hasIndexedDB) { callback(); /* User's browser has no support for IndexedDB... */ }
-
+      if(!_hasIndexedDB) { callback(); /* No browser support for IDB */ }
       var request = indexedDB.open('localDB', 108);
-
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
@@ -84,7 +75,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         db.createObjectStore('offlineItems', { keyPath: 'pk', autoIncrement: false } );
         view_model.idb = db;
       };
-
       request.onsuccess = function(e) {
         view_model.idb = e.target.result;
         callback();
@@ -142,7 +132,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _getLocalRecords(sinceTime) {
-      return _.filter(view_model.serviceDB, function(o) { return new Date(o.fields.timestamp).toISOString() > sinceTime; });
+      return _.filter(view_model.serviceDB, function(o) {
+        return new Date(o.fields.timestamp).toISOString() > sinceTime;
+      });
     };
 
 
@@ -198,11 +190,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Attempts to post data to a URL.
     function _postArrayToRemote(url, array, callback) {
-      var transformedArray = array;
       $http({
           url: url,
           method: "POST",
-          data: transformedArray,
+          data: array,
           headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
       })
       .then(function(response) { callback(true); },
@@ -304,9 +295,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _stripAngularHashKeys(array) {
-      for(var i=0; i<array.length; i++) {
-        delete array[i].$$hashKey;
-      }
+      for(var i=0; i<array.length; i++) delete array[i].$$hashKey;
       return array;
     };
 
