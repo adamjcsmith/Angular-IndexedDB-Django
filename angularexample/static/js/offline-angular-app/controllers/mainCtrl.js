@@ -24,9 +24,10 @@ angular.module('angularTestTwo')
 
     // Package an object and send to Service
     function createObject(localObject) {
-      console.log("Creating a new object, with attributes: " + JSON.stringify(localObject));
       localObject.timestamp = offlineDB.generateTimestamp();
+      localObject.deleted = false;
       var newObject = { fields: localObject };
+      console.log("Creating a new object, with attributes: " + JSON.stringify(newObject));
       offlineDB.addItem(newObject);
     };
 

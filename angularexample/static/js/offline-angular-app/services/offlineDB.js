@@ -30,7 +30,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function addItem(object) {
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
       _pushToServiceDB([object]);
+
       if(view_model.pushSync) newSyncTwo(notifyObservers);
+
      };
 
     function updateItem(object) {
@@ -256,6 +258,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Add/Update to IndexedDB. This function returns nothing.
     function _putToIndexedDB(item, callback) {
+        item.fields.timestamp = "0-00-00T00:00:00.000Z"; /* Set to impossible date */
         var req = _getObjStore('offlineItems').put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = function() { console.error(this.error); };
