@@ -6,7 +6,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Parameters
     view_model.autoSync = 0; /* Set to zero for no auto synchronisation */
-    view_model.pushSync = true;
+    view_model.pushSync = false;
     view_model.initialSync = true;
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
@@ -92,7 +92,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
               console.log("New remote and local records were detected.");
               var comp = _compareRecords(newLocalRecords, returnedRecords);
               console.log("The comparison was: " + JSON.stringify(comp));
-              callback();
+              _patchServiceDB(comp.conflictingRecords); /* Just patch for now */
+              _patchServiceDB(comp.safeRemote);
+              _patchRemote(comp.safeLocal, function() {
+                callback();
+              });
             } else {
               console.log("New remote records (only) were detected.");
               _patchServiceDB(returnedRecords);
@@ -103,12 +107,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           // Patch to remote only.
           if(newLocalRecords.length == 0) { callback(); return; }
           console.log("New local records were detected.");
-          var ops = _determinePatchOperation(newLocalRecords);
-          _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-            _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
-              view_model.lastChecked = generateTimestamp();
-              callback();
-            });
+          _patchRemote(newLocalRecords, function() {
+            callback();
           });
         }
       });
@@ -173,6 +173,16 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
     /* --------------- Remote (Private) --------------- */
+
+    function _patchRemote(records, callback) {
+      var ops = _determinePatchOperation(records);
+      _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
+        _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
+          view_model.lastChecked = generateTimestamp();
+          callback();
+        });
+      });
+    };
 
     function _getRemoteRecords(lastTimestamp, callback) {
       $http({

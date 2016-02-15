@@ -1,0 +1,32 @@
+CACHE MANIFEST
+# v1 - 2011-08-18
+# This is a comment.
+
+CACHE:
+https://127.0.0.1:8000/angularexample/
+https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css
+http://127.0.0.1:8000/static/js/offlinejs/themes/offline-theme-default.css
+http://127.0.0.1:8000/static/js/angularjs/angular.min.js
+http://127.0.0.1:8000/static/js/jquery/jquery.min.js
+http://127.0.0.1:8000/static/js/notify/notify.min.js
+http://127.0.0.1:8000/static/js/offline-angular-app/app.js
+https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic&subset=latin
+https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/themes/default/assets/fonts/icons.woff2
+https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/themes/default/assets/fonts/icons.woff
+https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/themes/default/assets/fonts/icons.ttf
+http://127.0.0.1:8000/static/js/offline-angular-app/controllers/mainCtrl.js
+http://127.0.0.1:8000/static/js/offline-angular-app/services/fakeAPI.js
+http://127.0.0.1:8000/static/js/offline-angular-app/services/offlineDB.js
+http://127.0.0.1:8000/static/js/offline-angular-app/directives/card.js
+http://127.0.0.1:8000/static/js/offlinejs/offline.min.js
+http://127.0.0.1:8000/static/js/indexedDB-polyfill/indexeddbpolyfill.min.js
+http://127.0.0.1:8000/static/js/lodash/lodash.js
+http://127.0.0.1:8000/static/js/async/async.js
+https://fonts.gstatic.com/s/lato/v11/H2DMvhDLycM56KNuAtbJYA.woff2
+http://127.0.0.1:8000/static/js/offline-angular-app/templates/card.html
+
+NETWORK:
+*
+
+FALLBACK:
+https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic&subset=latin https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic&subset=latin

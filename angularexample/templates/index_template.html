@@ -1,5 +1,6 @@
 {% load static from staticfiles %}
 <!doctype html>
+<html manifest="{% static "appcache/offlinify.appcache" %}">
   <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.8/semantic.css">
     <link rel="stylesheet" href="{% static "js/offlinejs/themes/offline-theme-default.css" %}">
