@@ -6,11 +6,8 @@ angular.module('angularTestTwo')
     $scope.dataModel = [];
 
     $scope.createObject = createObject;
-
     $scope.forceRefresh = forceRefresh;
-
     $scope.updateObject = updateObject;
-
     $scope.deleteObject = deleteObject;
 
     /* Controller observer-pattern function */

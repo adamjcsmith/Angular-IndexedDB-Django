@@ -30,9 +30,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function addItem(object) {
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
       _pushToServiceDB([object]);
-
       if(view_model.pushSync) newSyncTwo(notifyObservers);
-
+      console.log("serviceDB is now: " + JSON.stringify(view_model.serviceDB));
      };
 
     function updateItem(object) {
@@ -85,10 +84,25 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function newSyncTwo(callback) {
+
+      console.log("New Sync 2 has been called --------------------------");
+
       // 1. Check if there's new local data:
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
       // 2. Then check if there's remote data:
-      _getRemoteRecords(view_model.lastChecked, function(returnedRecords) {
+      _getRemoteRecords(view_model.lastChecked, function(response) {
+
+        console.log("Response was: " + JSON.stringify(response));
+
+        var returnedRecords = response.data;
+        if(response.status == "fail") {
+          // Load from IndexedDB / write to IndexedDB here instead.
+          console.log("INDEXEDDB WOULD BE ACCESSED HERE SPECIFICALLY");
+        }
+
+        // Diagnostics:
+        returnedRecords = [];
+
         if(returnedRecords.length > 0 ) {
             if(newLocalRecords.length > 0) {
               console.log("New remote and local records were detected.");
@@ -107,10 +121,26 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
             }
         } else {
           // Patch to remote only.
+
+          if(newLocalRecords.length == 0 && view_model.serviceDB.length == 0) {
+            // Indicates first sync. Dump IndexedDB into serviceDB.
+            console.log("No new local records; dumped IndexedDB records.");
+            _getIndexedDB(function(IDBRecords) {
+              _patchServiceDB(IDBRecords);
+              callback();
+              return;
+            });
+
+          }
+
           if(newLocalRecords.length == 0) { callback(); return; }
+
           console.log("New local records were detected.");
+          console.log("These records were: " + JSON.stringify(newLocalRecords));
           _patchRemote(newLocalRecords, function() {
-            callback();
+            _patchToIndexedDB(newLocalRecords, function() {
+              callback();
+            });
           });
         }
       });
@@ -140,6 +170,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
+    function _patchToIndexedDB(records, callback) {
+      // Put for create/update is identical.
+      // use the array method:
+      _putArrayToIndexedDB(records, function() {
+        callback();
+      });
+    };
+
+
     /* Compare local updates with server updates */
     function _compareRecords(localNew, remoteNew) {
       var conflictingRecords = [];
@@ -160,6 +199,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _determinePatchOperation(safeLocal) {
       var updateOps = [];
       var createOps = [];
+      //safeLocal = _.cloneDeep(safeLocal);
+      // This is a shallow copy: changing the pk here also affects serviceDB.
       for(var i=0; i<safeLocal.length; i++) {
         if(!safeLocal[i].pk) {
           safeLocal[i].pk = _generateUUID();
@@ -193,10 +234,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         })
         .then(
           function successCallback(response) {
-            if(response.data.length > 0) callback(response.data);
-            else callback(response.data);
+            if(response.data.length > 0) callback({data: response.data, status: "success"});
+            else callback({data: [], status: "success"});
         }, function errorCallback(response) {
-          callback([]); /* Return blank array */
+          callback({data: [], status: "fail"}); /* Return blank array */
         });
     };
 
@@ -220,7 +261,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     // Get from IndexedDB. This function returns appropriate records.
-    function _getRangeFromIndexedDB(sinceWhen, callback) {
+    function _getIndexedDB(callback) {
       var transaction = _newIDBTransaction();
       var objStore = transaction.objectStore('offlineItems');
       var keyRange = IDBKeyRange.lowerBound(0);
@@ -258,7 +299,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Add/Update to IndexedDB. This function returns nothing.
     function _putToIndexedDB(item, callback) {
-        item.fields.timestamp = "0-00-00T00:00:00.000Z"; /* Set to impossible date */
+        item.remoteSync = false;
         var req = _getObjStore('offlineItems').put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = function() { console.error(this.error); };
