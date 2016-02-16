@@ -85,19 +85,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function newSyncTwo(callback) {
 
-      console.log("New Sync 2 has been called --------------------------");
-
       // 1. Check if there's new local data:
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
       // 2. Then check if there's remote data:
       _getRemoteRecords(view_model.lastChecked, function(response) {
 
-        console.log("Response was: " + JSON.stringify(response));
-
         var returnedRecords = response.data;
-        if(response.status == "fail") {
+        if(response.status == "success") {
           // Load from IndexedDB / write to IndexedDB here instead.
-          console.log("INDEXEDDB WOULD BE ACCESSED HERE SPECIFICALLY");
+          console.log("SYNCHRONISE HERE WITH ANY SPECIAL INDEXEDDB RECORDS");
         }
 
         // Diagnostics:
@@ -122,26 +118,40 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         } else {
           // Patch to remote only.
 
-          if(newLocalRecords.length == 0 && view_model.serviceDB.length == 0) {
-            // Indicates first sync. Dump IndexedDB into serviceDB.
-            console.log("No new local records; dumped IndexedDB records.");
-            _getIndexedDB(function(IDBRecords) {
-              _patchServiceDB(IDBRecords);
-              callback();
-              return;
-            });
+          if(newLocalRecords.length > 0) {
+
+            console.log("New local records were detected.");
+
+            if(response.status == "fail") {
+              console.log("No remote connection. Special PUT to IndexedDB");
+              _patchToIndexedDB(newLocalRecords, false, function() {
+                callback();
+              });
+            }
+            else {
+              console.log("Remote connection available. Standard PUT to IndexedDB");
+              _patchRemote(newLocalRecords, function() {
+                _patchToIndexedDB(newLocalRecords, true, function() {
+                  callback();
+                });
+              });
+            }
+
+          } else {
+
+            console.log("No new local or remote records detected.");
+
+            if(view_model.serviceDB.length == 0) {
+              _getIndexedDB(function(IDBRecords) {
+                _patchServiceDB(IDBRecords); // Type 3: Retrieval
+                callback();
+              });
+            } else {
+              callback(); // Nothing to do.
+            }
 
           }
 
-          if(newLocalRecords.length == 0) { callback(); return; }
-
-          console.log("New local records were detected.");
-          console.log("These records were: " + JSON.stringify(newLocalRecords));
-          _patchRemote(newLocalRecords, function() {
-            _patchToIndexedDB(newLocalRecords, function() {
-              callback();
-            });
-          });
         }
       });
     };
@@ -170,12 +180,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
 
-    function _patchToIndexedDB(records, callback) {
-      // Put for create/update is identical.
-      // use the array method:
-      _putArrayToIndexedDB(records, function() {
-        callback();
-      });
+    function _patchToIndexedDB(records, remoteAssurance, callback) {
+      if(remoteAssurance) {
+        _putArrayToIndexedDB(records, function() {
+          callback();
+        });
+      } else {
+        // Special put here.
+      }
     };
 
 
