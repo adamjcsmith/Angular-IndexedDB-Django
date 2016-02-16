@@ -28,6 +28,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 
     function addItem(object) {
+      object.serverSeen = false;
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
       _pushToServiceDB([object]);
       if(view_model.pushSync) newSyncTwo(notifyObservers);
@@ -66,7 +67,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function establishIndexedDB(callback) {
       if(!_hasIndexedDB) { callback(); /* No browser support for IDB */ }
-      var request = indexedDB.open('localDB', 108);
+      var request = indexedDB.open('localDB', 109);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
@@ -83,6 +84,19 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       request.onerror = function() { console.error(this.error); };
     };
 
+
+    function newSyncThree(callback) {
+
+      // Populate local records.
+      var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
+
+      // Sync any unsynchronised IndexedDB records.
+      
+
+
+    };
+
+
     function newSyncTwo(callback) {
 
       // 1. Check if there's new local data:
@@ -91,10 +105,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       _getRemoteRecords(view_model.lastChecked, function(response) {
 
         var returnedRecords = response.data;
-        if(response.status == "success") {
-          // Load from IndexedDB / write to IndexedDB here instead.
-          console.log("SYNCHRONISE HERE WITH ANY SPECIAL INDEXEDDB RECORDS");
-        }
 
         // Diagnostics:
         returnedRecords = [];
@@ -127,8 +137,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
               _patchToIndexedDB(newLocalRecords, false, function() {
                 callback();
               });
-            }
-            else {
+            } else {
               console.log("Remote connection available. Standard PUT to IndexedDB");
               _patchRemote(newLocalRecords, function() {
                 _patchToIndexedDB(newLocalRecords, true, function() {
@@ -156,6 +165,49 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       });
     };
 
+
+    function _patchToIndexedDB(records, remoteAssurance, callback) {
+      if(remoteAssurance) {
+        _putArrayToIndexedDB(records, function() {
+          callback();
+        });
+      } else {
+        _putUnsyncedIndexedDB(records, function() {
+          callback();
+        });
+      }
+    };
+
+    function _getUnsyncedIndexedDB(callback) {
+      // Iterate through records for those with a zero timestamp.
+      _getIndexedDB(function(records) {
+          // use lodash filter here...
+          var unsynced = _.filter(records, function(o) { return o.fields.timestamp == 0;  } );
+          callback(unsynced);
+      });
+    };
+
+    function _putUnsyncedIndexedDB(array, callback) {
+      // Alter each record and put as normal in IndexedDB.
+      for(var i=0; i<array.length; i++) {
+          array[i].fields.timestamp = 0;
+      }
+      _putArrayToIndexedDB(array, function() {
+        callback();
+      });
+    };
+
+    function _assuredIndexedDBSync(array, callback) {
+      for(var i=0; i<array.length; i++) {
+        array[i].fields.timestamp = generateTimestamp();
+      }
+      _putArrayToIndexedDB(array, function() {
+        callback();
+      });
+    };
+
+
+
     function _patchServiceDB(remoteRecords) {
       var operations = _determinePatchOperation(remoteRecords);
       _updatesToServiceDB(operations.updateOperations);
@@ -179,16 +231,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       });
     };
 
-
-    function _patchToIndexedDB(records, remoteAssurance, callback) {
-      if(remoteAssurance) {
-        _putArrayToIndexedDB(records, function() {
-          callback();
-        });
-      } else {
-        // Special put here.
-      }
-    };
 
 
     /* Compare local updates with server updates */
@@ -229,14 +271,36 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Remote (Private) --------------- */
 
+    // Specify that this data set has been seen by the server before.
+    function _serverSeenData(records) {
+      for(var i=0; i<records.length; i++) {
+        records[i].serverSeen = true;
+      }
+      return records;
+    };
+
     function _patchRemote(records, callback) {
       var ops = _determinePatchOperation(records);
-      _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-        _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
-          view_model.lastChecked = generateTimestamp();
-          callback();
+
+      if(_hasIndexedDB) {
+
+        /*
+        _patchToIndexedDB(ops.createOperations.concat(ops.updateOperations), false, function() {
+          // Now that all the synced methods are in the IndexedDB,
+          // Get all of them and try to sync to
         });
-      });
+        */
+
+      } else {
+        // Original method:
+        _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
+          _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
+            view_model.lastChecked = generateTimestamp();
+            callback();
+          });
+        });
+      }
+
     };
 
     function _getRemoteRecords(lastTimestamp, callback) {
@@ -246,7 +310,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         })
         .then(
           function successCallback(response) {
-            if(response.data.length > 0) callback({data: response.data, status: "success"});
+            if(response.data.length > 0) callback({data: _serverSeenData(response.data), status: "success"});
             else callback({data: [], status: "success"});
         }, function errorCallback(response) {
           callback({data: [], status: "fail"}); /* Return blank array */
