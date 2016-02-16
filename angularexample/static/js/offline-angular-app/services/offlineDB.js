@@ -91,7 +91,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
 
       // Sync any unsynchronised IndexedDB records.
-      
+
 
 
     };
@@ -152,6 +152,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
             if(view_model.serviceDB.length == 0) {
               _getIndexedDB(function(IDBRecords) {
+                console.log("Getting " + IDBRecords.length + " records from IndexedDB");
                 _patchServiceDB(IDBRecords); // Type 3: Retrieval
                 callback();
               });
@@ -279,27 +280,30 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return records;
     };
 
+
+    function _reduceQueue(records, callback) {
+
+      _patchToIndexedDB(ops.createOperations.concat(ops.updateOperations), false, function() {
+        _getUnsyncedIndexedDB(function(unsyncedRecords) {
+          var createOperations = _.filter(unsyncedRecords, {serverSeen: false});
+          var updateOperations = _.filter(unsyncedRecords, {serverSeen: true});
+
+          // _patchRemote here.
+        });
+      });
+    };
+
+
+
     function _patchRemote(records, callback) {
       var ops = _determinePatchOperation(records);
 
-      if(_hasIndexedDB) {
-
-        /*
-        _patchToIndexedDB(ops.createOperations.concat(ops.updateOperations), false, function() {
-          // Now that all the synced methods are in the IndexedDB,
-          // Get all of them and try to sync to
+      _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
+        _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
+          view_model.lastChecked = generateTimestamp();
+          callback();
         });
-        */
-
-      } else {
-        // Original method:
-        _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-          _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
-            view_model.lastChecked = generateTimestamp();
-            callback();
-          });
-        });
-      }
+      });
 
     };
 
