@@ -11,9 +11,9 @@ angular.module('angularTestTwo')
     $scope.deleteObject = deleteObject;
 
     /* Controller observer-pattern function */
-    var updateCtrl = function(){
+    var updateCtrl = function(response){
       $scope.dataModel = offlineDB.serviceDB;
-      _updateToUI("Data Model Updated");
+      _updateToUI("Update: " + response);
     };
 
     offlineDB.registerController(updateCtrl);
@@ -42,8 +42,8 @@ angular.module('angularTestTwo')
     }
 
     function forceRefresh() {
-      offlineDB.newSyncThree(function() {
-        updateCtrl();
+      offlineDB.newSyncThree(function(response) {
+        updateCtrl(response);
       });
     };
 
