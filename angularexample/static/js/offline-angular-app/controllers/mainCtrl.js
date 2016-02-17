@@ -42,7 +42,7 @@ angular.module('angularTestTwo')
     }
 
     function forceRefresh() {
-      offlineDB.newSyncTwo(function() {
+      offlineDB.newSyncThree(function() {
         updateCtrl();
       });
     };
