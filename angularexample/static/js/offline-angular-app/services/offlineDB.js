@@ -8,9 +8,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.autoSync = 0; /* Set to zero for no auto synchronisation */
     view_model.pushSync = false;
     view_model.initialSync = true;
-    view_model.updateAPI = "/angularexample/updateElements/";
-    view_model.createAPI = "/angularexample/createElements/";
-    view_model.readAPI = "/angularexample/getElements/?after=";
+    view_model.updateAPI = "/angularexampleTEST/updateElements/";
+    view_model.createAPI = "/angularexampleTEST/createElements/";
+    view_model.readAPI = "/angularexampleTEST/getElements/?after=";
 
     // Service Variables
     view_model.idb = null;
@@ -92,28 +92,24 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       // A. Load previous data on the first sync:
       if( newLocalRecords.length == 0 && view_model.serviceDB.length == 0 ) {
-        _restoreLocalState( function(response) {
-
-          // Patch any new data:
-          _patchRemoteChanges(function(status) {
-
-            // reduce queue here:
-            _reduceQueue(function(response) {
-              callback(response);
+        _restoreLocalState( function(localResponse) {
+          _patchRemoteChanges(function(remoteResponse) {
+            _reduceQueue(function(queueResponse) {
+              callback(localResponse + " " + remoteResponse + " " + queueResponse);
             });
-
           });
-
         });
       } else {
-
-        // Just testing:
-        _reduceQueue(function(response) {
-          callback(response);
+        _patchRemoteChanges(function(remoteResponse) {
+          _reduceQueue(function(queueResponse) {
+            callback(remoteResponse + " " + queueResponse);
+          });
         });
 
-      }
+        // Just testing:
+        /* _reduceQueue(function(response) { callback(response); }); */
 
+      }
     };
 
 
@@ -129,10 +125,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _patchRemoteChanges(callback) {
       _getRemoteRecords(function(response) {
         if(response.status == 200) {
-          _patchLocal(response.data, function() {
-            callback(true);
+          _patchLocal(response.data, function(localResponse) {
+            callback(localResponse);
           });
-        } else { callback(false); }
+        } else { callback("Could not connect to remote server: (" + response.status + ") error."); }
       });
     };
 
@@ -142,10 +138,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       view_model.lastChecked = generateTimestamp();
       if( _hasIndexedDB() ) {
         _putArrayToIndexedDB(data, function() {
-          callback(true);
+          callback("Patched records to ServiceDB & IndexedDB.");
         });
       } else {
-        callback(true);
+        callback("Patched records to ServiceDB only.");
       }
     };
 
@@ -156,23 +152,16 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       if(!_hasIndexedDB()) { callback("IndexedDB not supported."); return; }
 
       _getIndexedDB(function(idbRecords) {
-        // Filter here to determine the correct lastUpdated time.
-
-        //console.log("lastChecked was: " + view_model.lastChecked);
 
         var nonQueueElements = _.filter(idbRecords, {syncState: 1});
         var sortedElements = _.reverse(_.sortBy(nonQueueElements, function(o) {
           return new Date(o.fields.timestamp).toISOString();
         }));
         if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0].fields.timestamp;
-        //else view_model.lastChecked = generateTimestamp();
-
-        //console.log("lastChecked is now: " + view_model.lastChecked);
-
-        //console.log("Sorted elements: " + JSON.stringify(sortedElements));
 
         _patchServiceDB(idbRecords);
-        callback(idbRecords.length + " record taken from IndexedDB.");
+        callback(idbRecords.length + " record(s) taken from IndexedDB.");
+
       });
 
     };
@@ -191,7 +180,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
             // Check here for integrity:
             if( queueLength == popLength ) {
-              callback("All queue items synchronised.");
+              callback("All queue items have been synchronised.");
             } else {
               callback( (originalQueueLength - popLength) + " items could not be synchronised.");
             }
