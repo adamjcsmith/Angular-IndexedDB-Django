@@ -129,14 +129,19 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Patches remote edits to serviceDB + IndexedDB:
     function _patchRemoteChanges(callback) {
       _getRemoteRecords(function(response) {
-        if(response.status == 200 ) {
-          _patchServiceDB(response.data);
-          _putArrayToIndexedDB(response.data, function() {
-            callback(_generateStatusMsg(response.status));
-          });
-        } else {
+
+        _patchServiceDB(response.data);
+        view_model.lastChecked = generateTimestamp();
+
+        if(!_hasIndexedDB() || response.status != 200) {
           callback(_generateStatusMsg(response.status));
+          return;
         }
+
+        _putArrayToIndexedDB(response.data, function() {
+          callback(_generateStatusMsg(response.status));
+        });
+
       });
     };
 
@@ -172,10 +177,41 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _reduceQueue(callback) {
       var createQueue = _.filter(view_model.serviceDB, { "syncState" : 0 });
       var updateQueue = _.filter(view_model.serviceDB, { "syncState" : 2 });
-      //console.log("The queue was: " + JSON.stringify(queue));
+      //console.log("Create queue was: " + JSON.stringify(createQueue));
+      //console.log("Update queue was: " + JSON.stringify(updateQueue));
       //callback();
+
+      // Get rid of the create queue:
+      /*
+      if(createQueue.length == 0) {}
+
+      function loopArray(array) {
+        _postRemote(createQueue[x],function(){
+          x++;
+          if(x < array.length) { loopArray(array); }
+          else { callback(); }
+        });
+      };
+      loopArray(array);
+      */
+
       callback();
 
+    };
+
+    // Tries to post an array one-by-one; returns successful elements.
+    function _safeArrayPost(array, url, callback) {
+      var x = 0;
+      var successfulElements = [];
+      function loopArray(array) {
+        _postRemote(array[x],url,function(response){
+          if(response.status == 200) successfulElements.push(array[x]);
+          x++;
+          if(x < array.length) { loopArray(array); }
+          else { callback(successfulElements); }
+        });
+      };
+      loopArray(array);
     };
 
 
@@ -247,11 +283,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
       })
       .then(
-        function successCallback(response) {
-          callback(response.status); // status will be 2xx
-        },
-        function errorCallback(response) {
-          callback(response.status); // 400/404
+        function(response) {
+          callback(response.status); // return response code.
         });
     };
 
