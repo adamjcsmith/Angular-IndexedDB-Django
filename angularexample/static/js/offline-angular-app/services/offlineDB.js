@@ -91,32 +91,46 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
 
       // Get remote data here.
-
-
+      /*
+      _getRemoteRecords(function(response) {
+        console.log("The response was: " + response.status);
+        callback("Server says: " + response.status);
+      });
+      */
 
       // Load previous data on the first sync:
-      /*
+
       if( newLocalRecords.length == 0 && view_model.serviceDB.length == 0 ) {
-        _restoreFromIndexedDB( function(response) {
+        _restoreLocalState( function(response) {
           callback(response);
         });
       } else { }
-      */
+
 
     };
 
 
     /* --------------- IndexedDB logic --------------- */
 
-    function _restoreFromIndexedDB(callback) {
+    function _restoreLocalState(callback) {
       if( _hasIndexedDB() ) {
         _getIndexedDB(function(idbRecords) {
+
+          // Filter here to determine the correct lastUpdated time.
+          var nonQueueElements = _.filter(idbRecords, {syncState: 1});
+          var sortedElements = _.sortBy(nonQueueElements, function(o) {
+            return new Date(o.fields.timestamp).toISOString();
+          });
+          if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0];
+          else view_model.lastChecked = generateTimestamp();
+
+          console.log("Sorted elements: " + JSON.stringify(sortedElements));
+
           _patchServiceDB(idbRecords);
           callback(idbRecords.length + " record taken from IndexedDB.");
         });
       }
     };
-
 
     function _reduceQueue(callback) {
       console.log("Test");
@@ -201,14 +215,17 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _getRemoteRecords(callback) {
       $http({
           method: 'GET',
-          url: view_model.getAPI + view_model.lastChecked
+          url: view_model.readAPI + view_model.lastChecked
         })
         .then(
           function successCallback(response) {
-            if(response.data.length > 0) callback({data: _resetSyncState(response.data), status: "success"});
-            else callback({data: [], status: "success"});
+            if(response.data.length > 0)
+              callback({data: _resetSyncState(response.data), status: 200});
+            else
+              callback({data: [], status: 200});
+
         }, function errorCallback(response) {
-          callback({data: [], status: "fail"}); /* Return blank array */
+            callback({data: [], status: response.status});
         });
     };
 
