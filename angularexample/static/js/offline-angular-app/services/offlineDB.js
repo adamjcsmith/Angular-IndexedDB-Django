@@ -8,9 +8,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.autoSync = 0; /* Set to zero for no auto synchronisation */
     view_model.pushSync = false;
     view_model.initialSync = true;
-    view_model.updateAPI = "/angularexampleTEST/updateElements/";
-    view_model.createAPI = "/angularexampleTEST/createElements/";
-    view_model.readAPI = "/angularexampleTEST/getElements/?after=";
+    view_model.updateAPI = "/angularexample/updateElements/";
+    view_model.createAPI = "/angularexample/createElements/";
+    view_model.readAPI = "/angularexample/getElements/?after=";
 
     // Service Variables
     view_model.idb = null;
@@ -35,9 +35,25 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       object.pk = _generateUUID();
 
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
-      _pushToServiceDB([object]);
-      if(view_model.pushSync) newSyncTwo(notifyObservers);
-      //console.log("serviceDB is now: " + JSON.stringify(view_model.serviceDB));
+
+      //_pushToServiceDB([object]);
+      //if(view_model.pushSync) newSyncThree(notifyObservers);
+
+      /*
+      if(_hasIndexedDB()) {
+        _putToIndexedDB(object, function() {
+          if(view_model.pushSync) newSyncThree(notifyObservers);
+        });
+      } else {
+        if(view_model.pushSync) newSyncThree(notifyObservers);
+      }
+      */
+
+
+      _patchLocal([object], function(response) {
+        if(view_model.pushSync) newSyncThree(notifyObservers);
+      });
+
      };
 
     function updateItem(object) {
@@ -46,8 +62,15 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       if(object.syncState == 1) object.syncState = 2;
 
       console.log("Updating this record: " + JSON.stringify(object));
-      _updatesToServiceDB([object]);
-      if(view_model.pushSync) newSyncTwo(notifyObservers);
+      //_updatesToServiceDB([object]);
+      //if(view_model.pushSync) newSyncThree(notifyObservers);
+
+
+      _patchLocal([object], function(response) {
+        if(view_model.pushSync) newSyncThree(notifyObservers);
+      });
+
+
      };
 
 
@@ -101,7 +124,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         });
       } else {
         _patchRemoteChanges(function(remoteResponse) {
+          console.log("break 1");
           _reduceQueue(function(queueResponse) {
+            console.log("break 2");
             callback(remoteResponse + " " + queueResponse);
           });
         });
@@ -160,6 +185,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0].fields.timestamp;
 
         _patchServiceDB(idbRecords);
+        console.log("serviceDB is: " + JSON.stringify(view_model.serviceDB));
         callback(idbRecords.length + " record(s) taken from IndexedDB.");
 
       });
@@ -182,7 +208,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
             if( queueLength == popLength ) {
               callback("All queue items have been synchronised.");
             } else {
-              callback( (originalQueueLength - popLength) + " items could not be synchronised.");
+              callback( (queueLength - popLength) + " items could not be synchronised.");
             }
 
           });
@@ -212,6 +238,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _patchServiceDB(data) {
       var operations = _filterOperations(data);
+      console.log("Received a patch request for serviceDB. create ops is: " + JSON.stringify(operations.createOperations));
       _updatesToServiceDB(operations.updateOperations);
       _pushToServiceDB(operations.createOperations);
     };
@@ -276,8 +303,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
       })
       .then(
-        function(response) {
+        function successCallback(response) {
+          console.log("_postRemote callback");
           callback(response.status); // return response code.
+        }, function errorCallback(response) {
+          callback(response.status);
         });
     };
 
@@ -303,7 +333,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function establishIndexedDB(callback) {
       if(!_hasIndexedDB) { callback(); /* No browser support for IDB */ }
-      var request = indexedDB.open('localDB', 109);
+      var request = indexedDB.open('localDB', 117);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
