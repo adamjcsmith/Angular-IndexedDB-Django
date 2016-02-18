@@ -10,7 +10,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.initialSync = true;
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
-    view_model.readAPI = "/angularexampleTEST3/getElements/?after=";
+    view_model.readAPI = "/angularexampleTEST4/getElements/?after=";
 
     // Service Variables
     view_model.idb = null;
@@ -90,46 +90,67 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
 
-      // Get remote data here.
-      /*
-      _getRemoteRecords(function(response) {
-        console.log("The response was: " + response.status);
-        callback("Server says: " + response.status);
-      });
-      */
-
-      // Load previous data on the first sync:
-
+      // A. Load previous data on the first sync:
       if( newLocalRecords.length == 0 && view_model.serviceDB.length == 0 ) {
         _restoreLocalState( function(response) {
-          callback(response);
+
+          // Patch any new data:
+          _patchRemoteChanges(function(status) {
+
+            // reduce queue here:
+            callback(status);
+
+          });
+
         });
       } else { }
 
+    };
 
+
+
+
+    // Patches remote edits to serviceDB + IndexedDB:
+    function _patchRemoteChanges(callback) {
+      _getRemoteRecords(function(response) {
+        if(response.status == 200 ) {
+          _patchServiceDB(response.data);
+          _putArrayToIndexedDB(response.data, function() {
+            callback("Synchronised with remote server.");
+          });
+        } else {
+          callback("Error with remote server sync: " + response.status);
+        }
+      });
     };
 
 
     /* --------------- IndexedDB logic --------------- */
 
     function _restoreLocalState(callback) {
-      if( _hasIndexedDB() ) {
-        _getIndexedDB(function(idbRecords) {
 
-          // Filter here to determine the correct lastUpdated time.
-          var nonQueueElements = _.filter(idbRecords, {syncState: 1});
-          var sortedElements = _.sortBy(nonQueueElements, function(o) {
-            return new Date(o.fields.timestamp).toISOString();
-          });
-          if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0];
-          else view_model.lastChecked = generateTimestamp();
+      if(!_hasIndexedDB()) { callback("IndexedDB not supported."); return; }
 
-          console.log("Sorted elements: " + JSON.stringify(sortedElements));
+      _getIndexedDB(function(idbRecords) {
+        // Filter here to determine the correct lastUpdated time.
 
-          _patchServiceDB(idbRecords);
-          callback(idbRecords.length + " record taken from IndexedDB.");
-        });
-      }
+        console.log("lastChecked was: " + view_model.lastChecked);
+
+        var nonQueueElements = _.filter(idbRecords, {syncState: 1});
+        var sortedElements = _.reverse(_.sortBy(nonQueueElements, function(o) {
+          return new Date(o.fields.timestamp).toISOString();
+        }));
+        if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0].fields.timestamp;
+        //else view_model.lastChecked = generateTimestamp();
+
+        console.log("lastChecked is now: " + view_model.lastChecked);
+
+        console.log("Sorted elements: " + JSON.stringify(sortedElements));
+
+        _patchServiceDB(idbRecords);
+        callback(idbRecords.length + " record taken from IndexedDB.");
+      });
+
     };
 
     function _reduceQueue(callback) {
@@ -293,6 +314,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Apply array of edited objects to IndexedDB.
     function _putArrayToIndexedDB(array, callback) {
       var x = 0;
+      if(array.length == 0) {
+        callback();
+        return;
+      }
       function loopArray(array) {
         _putToIndexedDB(array[x],function(){
           x++;
