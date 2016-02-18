@@ -10,7 +10,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.initialSync = true;
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
-    view_model.readAPI = "/angularexampleTEST5/getElements/?after=";
+    view_model.readAPI = "/angularexample/getElements/?after=";
 
     // Service Variables
     view_model.idb = null;
@@ -98,10 +98,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           _patchRemoteChanges(function(status) {
 
             // reduce queue here:
-            _reduceQueue(function() {
-              callback(status);
+            _reduceQueue(function(response) {
+              callback(response);
             });
-            //callback(status);
 
           });
 
@@ -109,8 +108,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       } else {
 
         // Just testing:
-        _reduceQueue(function() {
-          callback(status);
+        _reduceQueue(function(response) {
+          callback(response);
         });
 
       }
@@ -129,22 +128,26 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Patches remote edits to serviceDB + IndexedDB:
     function _patchRemoteChanges(callback) {
       _getRemoteRecords(function(response) {
-
-        _patchServiceDB(response.data);
-        view_model.lastChecked = generateTimestamp();
-
-        if(!_hasIndexedDB() || response.status != 200) {
-          callback(_generateStatusMsg(response.status));
-          return;
-        }
-
-        _putArrayToIndexedDB(response.data, function() {
-          callback(_generateStatusMsg(response.status));
-        });
-
+        if(response.status == 200) {
+          _patchLocal(response.data, function() {
+            callback(true);
+          });
+        } else { callback(false); }
       });
     };
 
+    // Patches the local storages with a dataset.
+    function _patchLocal(data, callback) {
+      _patchServiceDB(data);
+      view_model.lastChecked = generateTimestamp();
+      if( _hasIndexedDB() ) {
+        _putArrayToIndexedDB(data, function() {
+          callback(true);
+        });
+      } else {
+        callback(true);
+      }
+    };
 
     /* --------------- IndexedDB logic --------------- */
 
@@ -177,25 +180,25 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _reduceQueue(callback) {
       var createQueue = _.filter(view_model.serviceDB, { "syncState" : 0 });
       var updateQueue = _.filter(view_model.serviceDB, { "syncState" : 2 });
-      //console.log("Create queue was: " + JSON.stringify(createQueue));
-      //console.log("Update queue was: " + JSON.stringify(updateQueue));
-      //callback();
 
       // Get rid of the create queue:
-      /*
-      if(createQueue.length == 0) {}
+      _safeArrayPost(createQueue, view_model.createAPI, function(successfulCreates) {
+        _safeArrayPost(updateQueue, view_model.updateAPI, function(successfulUpdates) {
+          _patchLocal(_resetSyncState(successfulCreates.concat(successfulUpdates)), function(response) {
 
-      function loopArray(array) {
-        _postRemote(createQueue[x],function(){
-          x++;
-          if(x < array.length) { loopArray(array); }
-          else { callback(); }
+            var queueLength = updateQueue.length + createQueue.length;
+            var popLength = successfulCreates.length + successfulUpdates.length;
+
+            // Check here for integrity:
+            if( queueLength == popLength ) {
+              callback("All queue items synchronised.");
+            } else {
+              callback( (originalQueueLength - popLength) + " items could not be synchronised.");
+            }
+
+          });
         });
-      };
-      loopArray(array);
-      */
-
-      callback();
+      });
 
     };
 
@@ -203,9 +206,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _safeArrayPost(array, url, callback) {
       var x = 0;
       var successfulElements = [];
+      if(array.length == 0) { callback([]); return; }
       function loopArray(array) {
-        _postRemote(array[x],url,function(response){
-          if(response.status == 200) successfulElements.push(array[x]);
+        _postRemote(array[x],url,function(response) {
+          if(response == 200) successfulElements.push(array[x]);
           x++;
           if(x < array.length) { loopArray(array); }
           else { callback(successfulElements); }
@@ -279,7 +283,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       $http({
           url: url,
           method: "POST",
-          data: data,
+          data: [data],
           headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
       })
       .then(
