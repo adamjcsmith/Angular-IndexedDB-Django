@@ -10,7 +10,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.initialSync = true;
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
-    view_model.readAPI = "/angularexampleTEST4/getElements/?after=";
+    view_model.readAPI = "/angularexampleTEST5/getElements/?after=";
 
     // Service Variables
     view_model.idb = null;
@@ -37,7 +37,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       console.log("pushing " + JSON.stringify(object) + " to serviceDB");
       _pushToServiceDB([object]);
       if(view_model.pushSync) newSyncTwo(notifyObservers);
-      console.log("serviceDB is now: " + JSON.stringify(view_model.serviceDB));
+      //console.log("serviceDB is now: " + JSON.stringify(view_model.serviceDB));
      };
 
     function updateItem(object) {
@@ -98,17 +98,33 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           _patchRemoteChanges(function(status) {
 
             // reduce queue here:
-            callback(status);
+            _reduceQueue(function() {
+              callback(status);
+            });
+            //callback(status);
 
           });
 
         });
-      } else { }
+      } else {
+
+        // Just testing:
+        _reduceQueue(function() {
+          callback(status);
+        });
+
+      }
 
     };
 
 
-
+    // Generate a status message from a response status:
+    function _generateStatusMsg(status) {
+      if(status==200) return "Success: Synchronised with remote server.";
+      else if(status==400) return "Error: Server returned a validation error.";
+      else if(status==404) return "Error: Remote server not found.";
+      else return "Error: Unknown response code: " + status;
+    }
 
     // Patches remote edits to serviceDB + IndexedDB:
     function _patchRemoteChanges(callback) {
@@ -116,10 +132,10 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         if(response.status == 200 ) {
           _patchServiceDB(response.data);
           _putArrayToIndexedDB(response.data, function() {
-            callback("Synchronised with remote server.");
+            callback(_generateStatusMsg(response.status));
           });
         } else {
-          callback("Error with remote server sync: " + response.status);
+          callback(_generateStatusMsg(response.status));
         }
       });
     };
@@ -134,7 +150,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       _getIndexedDB(function(idbRecords) {
         // Filter here to determine the correct lastUpdated time.
 
-        console.log("lastChecked was: " + view_model.lastChecked);
+        //console.log("lastChecked was: " + view_model.lastChecked);
 
         var nonQueueElements = _.filter(idbRecords, {syncState: 1});
         var sortedElements = _.reverse(_.sortBy(nonQueueElements, function(o) {
@@ -143,9 +159,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0].fields.timestamp;
         //else view_model.lastChecked = generateTimestamp();
 
-        console.log("lastChecked is now: " + view_model.lastChecked);
+        //console.log("lastChecked is now: " + view_model.lastChecked);
 
-        console.log("Sorted elements: " + JSON.stringify(sortedElements));
+        //console.log("Sorted elements: " + JSON.stringify(sortedElements));
 
         _patchServiceDB(idbRecords);
         callback(idbRecords.length + " record taken from IndexedDB.");
@@ -154,7 +170,12 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _reduceQueue(callback) {
-      console.log("Test");
+      var createQueue = _.filter(view_model.serviceDB, { "syncState" : 0 });
+      var updateQueue = _.filter(view_model.serviceDB, { "syncState" : 2 });
+      //console.log("The queue was: " + JSON.stringify(queue));
+      //callback();
+      callback();
+
     };
 
 
@@ -217,20 +238,21 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Remote (Private) --------------- */
 
-    function _safePatchRemote(data, callback) {
-      /* Populate later */
-    };
-
-    function _patchRemote(records, callback) {
-      var ops = _determinePatchOperation(records);
-
-      _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
-        _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
-          view_model.lastChecked = generateTimestamp();
-          callback();
+    function _postRemote(data, url, callback) {
+      // Data should be a single record.
+      $http({
+          url: url,
+          method: "POST",
+          data: data,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
+      })
+      .then(
+        function successCallback(response) {
+          callback(response.status); // status will be 2xx
+        },
+        function errorCallback(response) {
+          callback(response.status); // 400/404
         });
-      });
-
     };
 
     function _getRemoteRecords(callback) {
@@ -250,17 +272,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         });
     };
 
-    function _postArrayToRemote(url, array, callback) {
-      $http({
-          url: url,
-          method: "POST",
-          data: array,
-          headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
-      })
-      .then(function(response) { callback(true); },
-          function(response) { callback(false); }
-      );
-    };
 
     /* --------------- IndexedDB (Private) --------------- */
 
@@ -387,6 +398,28 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
 /*
+
+    function _postArrayToRemote(url, array, callback) {
+      $http({
+          url: url,
+          method: "POST",
+          data: array,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
+      })
+      .then(function(response) { callback(true); },
+          function(response) { callback(false); }
+      );
+    };
+
+    function _patchRemote(records, callback) {
+      var ops = _determinePatchOperation(records);
+      _postArrayToRemote(view_model.createAPI, ops.createOperations, function() {
+        _postArrayToRemote(view_model.updateAPI, ops.updateOperations, function() {
+          view_model.lastChecked = generateTimestamp();
+          callback();
+        });
+      });
+    };
 
     function _pushToQueue(newLocalRecords, callback) {
 
