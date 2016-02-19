@@ -26,7 +26,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.newSyncThree = newSyncThree;
 
     // Determine IndexedDB Support
-    var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
+    //var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
+    var indexedDB = null;
 
     function addItem(object) {
 
@@ -49,7 +50,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       }
       */
 
-
       _patchLocal([object], function(response) {
         if(view_model.pushSync) newSyncThree(notifyObservers);
       });
@@ -65,11 +65,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       //_updatesToServiceDB([object]);
       //if(view_model.pushSync) newSyncThree(notifyObservers);
 
-
       _patchLocal([object], function(response) {
         if(view_model.pushSync) newSyncThree(notifyObservers);
       });
-
 
      };
 
@@ -263,22 +261,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Data Handling --------------- */
 
-    /* Compare local updates with server updates */
-    function _compareRecords(localNew, remoteNew) {
-      var conflictingRecords = [];
-      var safeRemote = remoteNew;
-      var safeLocal = [];
-      for(var i=0; i<localNew.length; i++) {
-        var matchID = _.findIndex(safeRemote, ['pk', localNew[i].pk]);
-        if(matchID > -1) {
-          conflictingRecords.push(safeRemote[matchID]);
-          safeRemote.splice(matchID, 1);
-        }
-        else { safeLocal.push(localNew[i]); }
-      }
-      return { safeLocal: safeLocal, safeRemote: safeRemote, conflictingRecords: conflictingRecords };
-    };
-
     /* Filter remote data into create or update operations */
     function _filterOperations(data) {
       var updateOps = [];
@@ -332,7 +314,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     /* --------------- IndexedDB (Private) --------------- */
 
     function establishIndexedDB(callback) {
-      if(!_hasIndexedDB) { callback(); /* No browser support for IDB */ }
+      if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
       var request = indexedDB.open('localDB', 117);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
@@ -351,7 +333,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _hasIndexedDB() {
-      return !(indexedDB == 'undefined' || indexedDB == null);
+      return !(indexedDB === undefined || indexedDB === null );
     };
 
     // Get from IndexedDB. This function returns appropriate records.
@@ -454,6 +436,21 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
 /*
+
+    function _compareRecords(localNew, remoteNew) {
+      var conflictingRecords = [];
+      var safeRemote = remoteNew;
+      var safeLocal = [];
+      for(var i=0; i<localNew.length; i++) {
+        var matchID = _.findIndex(safeRemote, ['pk', localNew[i].pk]);
+        if(matchID > -1) {
+          conflictingRecords.push(safeRemote[matchID]);
+          safeRemote.splice(matchID, 1);
+        }
+        else { safeLocal.push(localNew[i]); }
+      }
+      return { safeLocal: safeLocal, safeRemote: safeRemote, conflictingRecords: conflictingRecords };
+    };
 
     function _postArrayToRemote(url, array, callback) {
       $http({
