@@ -9,6 +9,7 @@ angular.module('angularTestTwo')
     $scope.forceRefresh = forceRefresh;
     $scope.updateObject = updateObject;
     $scope.deleteObject = deleteObject;
+    $scope.tellMe = tellMe;
 
     /* Controller observer-pattern function */
     var updateCtrl = function(response){
@@ -18,6 +19,9 @@ angular.module('angularTestTwo')
 
     offlineDB.registerController(updateCtrl);
 
+    function tellMe(object) {
+      alert(JSON.stringify(object));
+    };
 
     // Package an object and send to Service
     function createObject(localObject) {

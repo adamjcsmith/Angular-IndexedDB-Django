@@ -1,6 +1,6 @@
 <div class="ui cards">
 
-  <div ng-class="{'card': true, 'off': !person.fields.clicked}" ng-hide="person.fields.deleted" ng-repeat="person in dataModel track by person.pk">
+  <div ng-class="{'card': true, 'off': !person.fields.clicked}" ng-hide="person.fields.deleted" ng-repeat="person in dataModel">
 
     <div class="content">
       <!-- <img class="right floated mini ui image" src="https://unsplash.it/100?random"> -->
@@ -9,7 +9,7 @@
         {{ person.fields.text }}
       </div>
       <div class="meta">
-        <h6>{{person.pk}}</h6>
+        <h6 ng-click="tellMe(person)">{{person.pk}}</h6>
       </div>
       <div class="description">
         {{ person.company.catchPhrase}}

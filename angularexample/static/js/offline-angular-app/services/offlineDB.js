@@ -8,6 +8,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.autoSync = 0; /* Set to zero for no auto synchronisation */
     view_model.pushSync = false;
     view_model.initialSync = true;
+    view_model.allowIndexedDB = true; /* Switching to false disables IndexedDB */
+    view_model.allowRemote = true;
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
     view_model.readAPI = "/angularexample/getElements/?after=";
@@ -26,8 +28,8 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.newSyncThree = newSyncThree;
 
     // Determine IndexedDB Support
-    //var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
-    var indexedDB = null;
+    var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
+    if(!view_model.allowIndexedDB) indexedDB = null;
 
     function addItem(object) {
 
@@ -40,17 +42,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       //_pushToServiceDB([object]);
       //if(view_model.pushSync) newSyncThree(notifyObservers);
 
-      /*
-      if(_hasIndexedDB()) {
-        _putToIndexedDB(object, function() {
-          if(view_model.pushSync) newSyncThree(notifyObservers);
-        });
-      } else {
-        if(view_model.pushSync) newSyncThree(notifyObservers);
-      }
-      */
-
-      _patchLocal([object], function(response) {
+      _patchLocal(_stripAngularHashKeys([object]), function(response) {
         if(view_model.pushSync) newSyncThree(notifyObservers);
       });
 
@@ -65,7 +57,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       //_updatesToServiceDB([object]);
       //if(view_model.pushSync) newSyncThree(notifyObservers);
 
-      _patchLocal([object], function(response) {
+      _patchLocal(_stripAngularHashKeys([object]), function(response) {
         if(view_model.pushSync) newSyncThree(notifyObservers);
       });
 
@@ -76,7 +68,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function registerController(ctrlCallback) {
       if(view_model.idb == null) {
-        establishIndexedDB(function() {
+        _establishIndexedDB(function() {
           view_model.observerCallbacks.push(ctrlCallback);
           if(!view_model.initialSync) return;
           view_model.newSyncThree(function(response) {
@@ -109,7 +101,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function newSyncThree(callback) {
 
-      var newLocalRecords = _stripAngularHashKeys(_getLocalRecords(view_model.lastChecked));
+      var newLocalRecords = _getLocalRecords(view_model.lastChecked);
 
       // A. Load previous data on the first sync:
       if( newLocalRecords.length == 0 && view_model.serviceDB.length == 0 ) {
@@ -117,36 +109,26 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           _patchRemoteChanges(function(remoteResponse) {
             _reduceQueue(function(queueResponse) {
               callback(localResponse + " " + remoteResponse + " " + queueResponse);
+              console.log("view_model.lastChecked is now: " + view_model.lastChecked);
             });
           });
         });
       } else {
         _patchRemoteChanges(function(remoteResponse) {
-          console.log("break 1");
           _reduceQueue(function(queueResponse) {
-            console.log("break 2");
             callback(remoteResponse + " " + queueResponse);
+            console.log("view_model.lastChecked is now: " + view_model.lastChecked);
           });
         });
-
-        // Just testing:
-        /* _reduceQueue(function(response) { callback(response); }); */
 
       }
     };
 
-
-    // Generate a status message from a response status:
-    function _generateStatusMsg(status) {
-      if(status==200) return "Success: Synchronised with remote server.";
-      else if(status==400) return "Error: Server returned a validation error.";
-      else if(status==404) return "Error: Remote server not found.";
-      else return "Error: Unknown response code: " + status;
-    }
-
     // Patches remote edits to serviceDB + IndexedDB:
     function _patchRemoteChanges(callback) {
+      if(!view_model.allowRemote) { callback("Remote connection disabled."); return; }
       _getRemoteRecords(function(response) {
+        console.log("The _getRemoteRecords data was: " + JSON.stringify(response.data));
         if(response.status == 200) {
           _patchLocal(response.data, function(localResponse) {
             callback(localResponse);
@@ -191,8 +173,24 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _reduceQueue(callback) {
+
+      if(!view_model.allowRemote) { callback("As remote is disabled, the queue cannot be cleared."); return; }
+
       var createQueue = _.filter(view_model.serviceDB, { "syncState" : 0 });
       var updateQueue = _.filter(view_model.serviceDB, { "syncState" : 2 });
+
+      /*
+      createQueue = _.forEach(createQueue, function(value) {
+        value.fields.timestamp = generateTimestamp();
+      });
+
+      updateQueue = _.forEach(updateQueue, function(value) {
+        value.fields.timestamp = generateTimestamp();
+      });
+      */
+
+      console.log("The create queue was: " + JSON.stringify(createQueue));
+      console.log("The update queue was: " + JSON.stringify(updateQueue));
 
       // Get rid of the create queue:
       _safeArrayPost(createQueue, view_model.createAPI, function(successfulCreates) {
@@ -236,7 +234,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _patchServiceDB(data) {
       var operations = _filterOperations(data);
-      console.log("Received a patch request for serviceDB. create ops is: " + JSON.stringify(operations.createOperations));
       _updatesToServiceDB(operations.updateOperations);
       _pushToServiceDB(operations.createOperations);
     };
@@ -294,6 +291,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     };
 
     function _getRemoteRecords(callback) {
+      console.log("The _getRemoteRecords URL was: " + (view_model.readAPI + view_model.lastChecked));
       $http({
           method: 'GET',
           url: view_model.readAPI + view_model.lastChecked
@@ -313,9 +311,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- IndexedDB (Private) --------------- */
 
-    function establishIndexedDB(callback) {
+    function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = indexedDB.open('localDB', 117);
+      var request = indexedDB.open('localDB', 118);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
@@ -351,13 +349,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         result.continue();
       };
       cursorRequest.onerror = function() { console.error("error"); };
-    };
-
-    // Get individual record from IndexedDB by an ID.
-    function _getFromIndexedDB(id, callback) {
-        var req = _getObjStore('offlineItems').get(id);
-        req.onsuccess = function(e) { callback(true); }
-        req.onerror = function() { callback(false); }
     };
 
     // Apply array of edited objects to IndexedDB.
@@ -423,7 +414,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     if(view_model.autoSync > 0 && parseInt(view_model.autoSync) === view_model.autoSync) {
       (function syncLoop() {
         setTimeout(function() {
-          newSyncTwo(function() {
+          newSyncThree(function() {
             notifyObservers();
           });
           syncLoop();
@@ -436,6 +427,19 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
 
 /*
+
+    function _generateStatusMsg(status) {
+      if(status==200) return "Success: Synchronised with remote server.";
+      else if(status==400) return "Error: Server returned a validation error.";
+      else if(status==404) return "Error: Remote server not found.";
+      else return "Error: Unknown response code: " + status;
+    }
+
+    function _getFromIndexedDB(id, callback) {
+        var req = _getObjStore('offlineItems').get(id);
+        req.onsuccess = function(e) { callback(true); }
+        req.onerror = function() { callback(false); }
+    };
 
     function _compareRecords(localNew, remoteNew) {
       var conflictingRecords = [];
