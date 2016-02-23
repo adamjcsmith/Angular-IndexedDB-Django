@@ -33,16 +33,18 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function addItem(object) {
 
-      // Append with state information:
-      object.syncState = 0;
-      object.pk = _generateUUID();
+      var newObj = _.cloneDeep(_stripAngularHashKeys(object));
 
-      console.log("pushing " + JSON.stringify(object) + " to serviceDB");
+      // Append with state information:
+      newObj.syncState = 0;
+      newObj.pk = _generateUUID();
+
+      console.log("pushing " + JSON.stringify(newObj) + " to serviceDB");
 
       //_pushToServiceDB([object]);
       //if(view_model.pushSync) newSyncThree(notifyObservers);
 
-      _patchLocal(_stripAngularHashKeys([object]), function(response) {
+      _patchLocal(([newObj]), function(response) {
         if(view_model.pushSync) newSyncThree(notifyObservers);
       });
 
@@ -330,7 +332,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = indexedDB.open('localDB', 122);
+      var request = indexedDB.open('localDB', 125);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };

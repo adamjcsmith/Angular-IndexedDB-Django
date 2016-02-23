@@ -30,6 +30,7 @@ angular.module('angularTestTwo')
       var newObject = { fields: localObject };
       console.log("Creating a new object, with attributes: " + JSON.stringify(newObject));
       offlineDB.addItem(newObject);
+
     };
 
     function updateObject(localObject) {
