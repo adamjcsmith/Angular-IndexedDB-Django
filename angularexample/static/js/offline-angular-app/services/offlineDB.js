@@ -158,11 +158,21 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
       _getIndexedDB(function(idbRecords) {
 
-        var nonQueueElements = _.filter(idbRecords, {syncState: 1});
-        var sortedElements = _.reverse(_.sortBy(nonQueueElements, function(o) {
+        var sortedElements = _.reverse(_.sortBy(idbRecords, function(o) {
           return new Date(o.fields.timestamp).toISOString();
         }));
-        if(sortedElements.length > 0) view_model.lastChecked = sortedElements[0].fields.timestamp;
+        var nonQueueElements = _.filter(sortedElements, {syncState: 1});
+        var queueElements = _.filter(sortedElements, function(o) { return o.syncState != 1; });
+
+        if(nonQueueElements.length > 0)
+          view_model.lastChecked = sortedElements[0].fields.timestamp;
+        else {
+          if(queueElements.length > 0) view_model.lastChecked = queueElements[queueElements.length - 1].fields.timestamp;
+        }
+
+        console.log("_restoreLocalState diagnostics: queueElements was: " + JSON.stringify(queueElements));
+        console.log("_restoreLocalState diagnostics: nonQueueElements was: " + JSON.stringify(nonQueueElements));
+        console.log("_restoreLocalState diagnostics. view_model.lastChecked is now: " + view_model.lastChecked + " after restoreLocalState.");
 
         _patchServiceDB(idbRecords);
         console.log("serviceDB is: " + JSON.stringify(view_model.serviceDB));
@@ -195,7 +205,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       // Get rid of the create queue:
       _safeArrayPost(createQueue, view_model.createAPI, function(successfulCreates) {
         _safeArrayPost(updateQueue, view_model.updateAPI, function(successfulUpdates) {
-          _patchLocal(_resetSyncState(successfulCreates.concat(successfulUpdates)), function(response) {
+
+          var totalQueue = successfulCreates.concat(successfulUpdates);
+          _.forEach(totalQueue, function(value) {
+            value.fields.timestamp = generateTimestamp();
+            console.log("Generating a new timestamp for: " + JSON.stringify(value));
+          });
+
+          _patchLocal(_resetSyncState(totalQueue), function(response) {
 
             var queueLength = updateQueue.length + createQueue.length;
             var popLength = successfulCreates.length + successfulUpdates.length;
@@ -313,7 +330,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = indexedDB.open('localDB', 118);
+      var request = indexedDB.open('localDB', 122);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };

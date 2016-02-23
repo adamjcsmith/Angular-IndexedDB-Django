@@ -94,7 +94,7 @@ class UpdateElementView(View):
                 e = Element.objects.get(id=strippedID)
                 e.text=item['fields']['text']
                 e.clicked=item['fields']['clicked']
-                e.timestamp=item['fields']['timestamp']
+                #e.timestamp=item['fields']['timestamp']
                 e.deleted=item['fields']['deleted']
                 e.save()
             except Exception as e:
