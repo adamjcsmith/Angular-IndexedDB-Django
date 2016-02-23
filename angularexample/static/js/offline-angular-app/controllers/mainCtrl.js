@@ -3,47 +3,39 @@
 angular.module('angularTestTwo')
   .controller('mainCtrl', function($scope, offlineDB) {
 
+    /* Controller Model */
     $scope.dataModel = [];
 
     $scope.createObject = createObject;
     $scope.forceRefresh = forceRefresh;
     $scope.updateObject = updateObject;
     $scope.deleteObject = deleteObject;
-    $scope.tellMe = tellMe;
 
     /* Controller observer-pattern function */
-    var updateCtrl = function(response){
+    var updateCtrl = function(response) {
       $scope.dataModel = offlineDB.serviceDB;
       _updateToUI("Update: " + response);
     };
 
     offlineDB.registerController(updateCtrl);
 
-    function tellMe(object) {
-      alert(JSON.stringify(object));
-    };
-
     // Package an object and send to Service
     function createObject(localObject) {
       localObject.timestamp = offlineDB.generateTimestamp();
       localObject.deleted = false;
       var newObject = { fields: localObject };
-      console.log("Creating a new object, with attributes: " + JSON.stringify(newObject));
-      offlineDB.addItem(newObject);
+      offlineDB.objectUpdate(newObject);
 
     };
 
     function updateObject(localObject) {
-      console.log("Update object called, object was: " + JSON.stringify(localObject));
       localObject.fields.timestamp = offlineDB.generateTimestamp();
-      offlineDB.updateItem(localObject);
+      offlineDB.objectUpdate(localObject);
     }
 
     function deleteObject(localObject) {
-      console.log("Delete object called, object was: " + JSON.stringify(localObject));
       localObject.fields.deleted = true;
-      localObject.fields.timestamp = offlineDB.generateTimestamp();
-      offlineDB.updateItem(localObject);
+      updateObject(localObject);
     }
 
     function forceRefresh() {
@@ -51,7 +43,6 @@ angular.module('angularTestTwo')
         updateCtrl(response);
       });
     };
-
 
 
     /* ---------- Private functions ---------- */

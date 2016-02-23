@@ -22,33 +22,26 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     // Public Functions
     view_model.registerController = registerController;
-    view_model.addItem = addItem;
     view_model.generateTimestamp = generateTimestamp;
-    view_model.updateItem = updateItem;
     view_model.newSyncThree = newSyncThree;
+    view_model.objectUpdate = objectUpdate;
 
     // Determine IndexedDB Support
     view_model.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
     if(!view_model.allowIndexedDB) view_model.indexedDB = null;
 
-    function addItem(object) {
-      // Deep clone and append state info:
-      var newObj = _.cloneDeep(_stripAngularHashKeys(object));
-      newObj.syncState = 0;
-      newObj.pk = _generateUUID();
-      _patchLocal(([newObj]), function(response) {
-        if(view_model.pushSync) newSyncThree(notifyObservers);
+    function objectUpdate(obj) {
+      if(obj.hasOwnProperty("syncState")) {
+        if(obj.syncState > 0) { obj.syncState = 2; }
+      } else {
+        obj = _.cloneDeep(_stripAngularHashKeys(obj));
+        obj.syncState = 0;
+        obj.pk = _generateUUID();
+      }
+      _patchLocal(_stripAngularHashKeys([obj]), function(response) {
+        if(view_model.pushSync) newSyncThree(_notifyObservers);
       });
      };
-
-    function updateItem(object) {
-      // Upgrade the state
-      if(object.syncState == 1) object.syncState = 2;
-      _patchLocal(_stripAngularHashKeys([object]), function(response) {
-        if(view_model.pushSync) newSyncThree(notifyObservers);
-      });
-     };
-
 
      /* --------------- Observer Pattern --------------- */
 
@@ -69,19 +62,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         });
        }
      };
-
-    function notifyObservers() {
-      angular.forEach(view_model.observerCallbacks, function(callback){
-        callback();
-      });
-    };
-
-    function _resetSyncState(records) {
-      for(var i=0; i<records.length; i++) {
-        records[i].syncState = 1;
-      }
-      return records;
-    };
 
     /* --------------- Synchronisation --------------- */
 
@@ -128,6 +108,12 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       } else {
         callback("Patched records to ServiceDB only.");
       }
+    };
+
+    function __notifyObservers() {
+      angular.forEach(view_model.observerCallbacks, function(callback){
+        callback();
+      });
     };
 
     /* --------------- IndexedDB logic --------------- */
@@ -189,23 +175,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     };
 
-    // Tries to post an array one-by-one; returns successful elements.
-    function _safeArrayPost(array, url, callback) {
-      var x = 0;
-      var successfulElements = [];
-      if(array.length == 0) { callback([]); return; }
-      function loopArray(array) {
-        _postRemote(array[x],url,function(response) {
-          if(response == 200) successfulElements.push(array[x]);
-          x++;
-          if(x < array.length) { loopArray(array); }
-          else { callback(successfulElements); }
-        });
-      };
-      loopArray(array);
-    };
-
-
     /* --------------- ServiceDB Interface --------------- */
 
     function _patchServiceDB(data) {
@@ -231,7 +200,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       });
     };
 
-
     /* --------------- Data Handling --------------- */
 
     /* Filter remote data into create or update operations */
@@ -246,8 +214,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return { updateOperations: updateOps, createOperations: createOps };
     }
 
+    function _resetSyncState(records) {
+      for(var i=0; i<records.length; i++) {
+        records[i].syncState = 1;
+      }
+      return records;
+    };
 
-    /* --------------- Remote (Private) --------------- */
+    /* --------------- Remote --------------- */
 
     function _postRemote(data, url, callback) {
       // Data should be a single record.
@@ -282,19 +256,35 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
         });
     };
 
+    // Tries to post an array one-by-one; returns successful elements.
+    function _safeArrayPost(array, url, callback) {
+      var x = 0;
+      var successfulElements = [];
+      if(array.length == 0) { callback([]); return; }
+      function loopArray(array) {
+        _postRemote(array[x],url,function(response) {
+          if(response == 200) successfulElements.push(array[x]);
+          x++;
+          if(x < array.length) { loopArray(array); }
+          else { callback(successfulElements); }
+        });
+      };
+      loopArray(array);
+    };
 
-    /* --------------- IndexedDB (Private) --------------- */
+    /* --------------- IndexedDB --------------- */
 
     function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = view_model.indexedDB.open('localDB', 128);
+      var request = view_model.indexedDB.open('localDB', 135);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
         if(db.objectStoreNames.contains('offlineItems')) {
           db.deleteObjectStore('offlineItems');
         }
-        db.createObjectStore('offlineItems', { keyPath: 'pk', autoIncrement: false } );
+        var offlineItems = db.createObjectStore('offlineItems', { keyPath: 'pk', autoIncrement: false } );
+        var dateIndex = offlineItems.createIndex("byDate", "fields.timestamp", {unique: false});
         view_model.idb = db;
       };
       request.onsuccess = function(e) {
@@ -313,7 +303,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var transaction = _newIDBTransaction();
       var objStore = transaction.objectStore('offlineItems');
       var keyRange = IDBKeyRange.lowerBound(0);
-      var cursorRequest = objStore.openCursor(keyRange);
+      var cursorRequest = objStore.index('byDate').openCursor(keyRange);
       var returnableItems = [];
       transaction.oncomplete = function(e) { callback(returnableItems); };
       cursorRequest.onsuccess = function(e) {
@@ -360,6 +350,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Utilities --------------- */
 
+    function generateTimestamp() {
+      var d = new Date();
+      return d.toISOString();
+    };
+
     function _generateUUID() {
       var d = new Date().getTime();
       if(window.performance && typeof window.performance.now === "function"){
@@ -373,11 +368,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return uuid;
     };
 
-    function generateTimestamp() {
-      var d = new Date();
-      return d.toISOString();
-    };
-
     function _stripAngularHashKeys(array) {
       for(var i=0; i<array.length; i++) delete array[i].$$hashKey;
       return array;
@@ -389,7 +379,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       (function syncLoop() {
         setTimeout(function() {
           newSyncThree(function() {
-            notifyObservers();
+            __notifyObservers();
           });
           syncLoop();
         }, view_model.autoSync);
