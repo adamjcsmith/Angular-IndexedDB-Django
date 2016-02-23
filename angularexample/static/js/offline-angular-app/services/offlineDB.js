@@ -40,7 +40,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       } else {
         obj = _.cloneDeep(_stripAngularHashKeys(obj));
         obj.syncState = 0;
-        obj[view_model.primaryKeyProperty] = _generateUUID();
+        obj.pk = "TESTING!!!";
+        //var element = _parseProperty(obj, view_model.primaryKeyProperty);
+        //console.log("Interestingly, element is: " + element);
+        //console.log(_parseProperty(obj, view_model.primaryKeyProperty));
+        _.set(obj, view_model.primaryKeyProperty, _generateUUID());
+        //element = _generateUUID();
+        //console.log("Interestingly, element is: " + element);
+        console.log("This element's pk value was:" + obj.pk);
       }
       _patchLocal(_stripAngularHashKeys([obj]), function(response) {
         if(view_model.pushSync) newSyncThree(_notifyObservers);
@@ -129,17 +136,18 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       _getIndexedDB(function(idbRecords) {
 
         var sortedElements = _.reverse(_.sortBy(idbRecords, function(o) {
-          return new Date(o.fields.timestamp).toISOString();
+          console.log("The timestamp was: " + _.get(o, view_model.timestampProperty));
+          return new Date(_.get(o, view_model.timestampProperty)).toISOString();
         }));
         var nonQueueElements = _.filter(sortedElements, {syncState: 1});
         var queueElements = _.filter(sortedElements, function(o) { return o.syncState != 1; });
 
         if(nonQueueElements.length > 0) {
-          view_model.lastChecked = sortedElements[0].fields.timestamp;
+          view_model.lastChecked = _.get(sortedElements[0], view_model.timestampProperty);
         }
         else {
           if(queueElements.length > 0)
-            view_model.lastChecked = queueElements[queueElements.length - 1].fields.timestamp;
+            view_model.lastChecked = _.get(queueElements[queueElements.length - 1], view_model.timestampProperty);
         }
 
         _patchServiceDB(idbRecords);
@@ -161,7 +169,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
           var totalQueue = successfulCreates.concat(successfulUpdates);
           _.forEach(totalQueue, function(value) {
-            value.fields.timestamp = generateTimestamp();
+            _.set(value, view_model.timestampProperty, generateTimestamp());
           });
 
           _patchLocal(_resetSyncState(totalQueue), function(response) {
@@ -197,7 +205,13 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     function _updatesToServiceDB(array) {
       for(var i=0; i<array.length; i++) {
         var indexJSON = {};
-        indexJSON[view_model.primaryKeyProperty] = array[i][view_model.primaryKeyProperty];
+        //indexJSON[_.get(array[i], view_model.primaryKeyProperty)] = array[i][view_model.primaryKeyProperty];
+
+        //var element = _parseProperty(indexJSON, view_model.primaryKeyProperty);
+        //element = _parseProperty(array[i], view_model.primaryKeyProperty);
+
+        _.set(indexJSON, view_model.primaryKeyProperty, _.get(array[i], view_model.primaryKeyProperty));
+
         var matchID = _.findIndex(view_model.serviceDB, indexJSON);
         if(matchID > -1) view_model.serviceDB[matchID] = array[i];
       }
@@ -205,7 +219,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _getLocalRecords(sinceTime) {
       return _.filter(view_model.serviceDB, function(o) {
-        return new Date(o.fields.timestamp).toISOString() > sinceTime;
+        return new Date(_.get(o, view_model.timestampProperty)).toISOString() > sinceTime;
       });
     };
 
@@ -217,7 +231,11 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var createOps = [];
       for(var i=0; i<data.length; i++) {
         var queryJSON = {};
-        queryJSON[view_model.primaryKeyProperty] = data[i][view_model.primaryKeyProperty];
+        //var element = _parseProperty(queryJSON, view_model.primaryKeyProperty);
+        //element = _parseProperty(data[i], view_model.primaryKeyProperty);
+
+        _.set(queryJSON, view_model.primaryKeyProperty, _.get(data[i], view_model.primaryKeyProperty));
+
         var query = _.findIndex(view_model.serviceDB, queryJSON);
         if( query > -1 ) updateOps.push(data[i]);
         else createOps.push(data[i]);
@@ -287,7 +305,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = view_model.indexedDB.open('localDB', 137);
+      var request = view_model.indexedDB.open('localDB', 140);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
@@ -295,7 +313,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
           db.deleteObjectStore('offlineItems');
         }
         var offlineItems = db.createObjectStore('offlineItems', { keyPath: view_model.primaryKeyProperty, autoIncrement: false } );
-        var dateIndex = offlineItems.createIndex("byDate", "fields.timestamp", {unique: false});
+        var dateIndex = offlineItems.createIndex("byDate", view_model.timestampProperty, {unique: false});
         view_model.idb = db;
       };
       request.onsuccess = function(e) {
