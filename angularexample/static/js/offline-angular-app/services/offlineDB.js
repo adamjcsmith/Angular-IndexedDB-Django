@@ -13,6 +13,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.updateAPI = "/angularexample/updateElements/";
     view_model.createAPI = "/angularexample/createElements/";
     view_model.readAPI = "/angularexample/getElements/?after=";
+    view_model.primaryKeyProperty = "pk";
+    view_model.timestampProperty = "fields.timestamp";
+    view_model.deletedProperty = "fields.deleted";
 
     // Service Variables
     view_model.idb = null;
@@ -30,13 +33,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     view_model.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
     if(!view_model.allowIndexedDB) view_model.indexedDB = null;
 
+    // Filters create or update ops by queue state:
     function objectUpdate(obj) {
       if(obj.hasOwnProperty("syncState")) {
         if(obj.syncState > 0) { obj.syncState = 2; }
       } else {
         obj = _.cloneDeep(_stripAngularHashKeys(obj));
         obj.syncState = 0;
-        obj.pk = _generateUUID();
+        obj[view_model.primaryKeyProperty] = _generateUUID();
       }
       _patchLocal(_stripAngularHashKeys([obj]), function(response) {
         if(view_model.pushSync) newSyncThree(_notifyObservers);
@@ -45,6 +49,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
      /* --------------- Observer Pattern --------------- */
 
+     // Called by the controller to receive updates (observer pattern)
     function registerController(ctrlCallback) {
       if(view_model.idb == null) {
         _establishIndexedDB(function() {
@@ -65,9 +70,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- Synchronisation --------------- */
 
+    // Restores local state on first sync, or patches local and remote changes:
     function newSyncThree(callback) {
       var newLocalRecords = _getLocalRecords(view_model.lastChecked);
-      // A. Load previous data on the first sync:
       if( newLocalRecords.length == 0 && view_model.serviceDB.length == 0 ) {
         _restoreLocalState( function(localResponse) {
           _patchRemoteChanges(function(remoteResponse) {
@@ -118,6 +123,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     /* --------------- IndexedDB logic --------------- */
 
+    // Puts IndexedDB store into scope:
     function _restoreLocalState(callback) {
       if(!_hasIndexedDB()) { callback("IndexedDB not supported."); return; }
       _getIndexedDB(function(idbRecords) {
@@ -142,6 +148,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       });
     };
 
+    // Synchronises elements to remote when connection is available:
     function _reduceQueue(callback) {
       if(!view_model.allowRemote) { callback("As remote is disabled, the queue cannot be cleared."); return; }
 
@@ -189,7 +196,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _updatesToServiceDB(array) {
       for(var i=0; i<array.length; i++) {
-        var matchID = _.findIndex(view_model.serviceDB, {"pk" : array[i].pk });
+        var indexJSON = {};
+        indexJSON[view_model.primaryKeyProperty] = array[i][view_model.primaryKeyProperty];
+        var matchID = _.findIndex(view_model.serviceDB, indexJSON);
         if(matchID > -1) view_model.serviceDB[matchID] = array[i];
       }
     };
@@ -207,7 +216,9 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       var updateOps = [];
       var createOps = [];
       for(var i=0; i<data.length; i++) {
-        var query = _.findIndex(view_model.serviceDB, {'pk' : data[i].pk });
+        var queryJSON = {};
+        queryJSON[view_model.primaryKeyProperty] = data[i][view_model.primaryKeyProperty];
+        var query = _.findIndex(view_model.serviceDB, queryJSON);
         if( query > -1 ) updateOps.push(data[i]);
         else createOps.push(data[i]);
       }
@@ -276,14 +287,14 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
 
     function _establishIndexedDB(callback) {
       if(!_hasIndexedDB()) { callback(); /* No browser support for IDB */ return; }
-      var request = view_model.indexedDB.open('localDB', 135);
+      var request = view_model.indexedDB.open('localDB', 137);
       request.onupgradeneeded = function(e) {
         var db = e.target.result;
         e.target.transaction.onerror = function() { console.error(this.error); };
         if(db.objectStoreNames.contains('offlineItems')) {
           db.deleteObjectStore('offlineItems');
         }
-        var offlineItems = db.createObjectStore('offlineItems', { keyPath: 'pk', autoIncrement: false } );
+        var offlineItems = db.createObjectStore('offlineItems', { keyPath: view_model.primaryKeyProperty, autoIncrement: false } );
         var dateIndex = offlineItems.createIndex("byDate", "fields.timestamp", {unique: false});
         view_model.idb = db;
       };
@@ -335,7 +346,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
     // Add/Update to IndexedDB. This function returns nothing.
     function _putToIndexedDB(item, callback) {
         item.remoteSync = false;
-        var req = _getObjStore('offlineItems').put(item);
+        var req = _newIDBTransaction().objectStore("offlineItems").put(item);
         req.onsuccess = function(e) { callback(); };
         req.onerror = function() { console.error(this.error); };
     };
@@ -344,10 +355,6 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return view_model.idb.transaction(['offlineItems'], 'readwrite');
     }
 
-    function _getObjStore(name) {
-      return _newIDBTransaction().objectStore(name);
-    };
-
     /* --------------- Utilities --------------- */
 
     function generateTimestamp() {
@@ -355,6 +362,7 @@ angular.module('angularTestTwo').service('offlineDB', function($http) {
       return d.toISOString();
     };
 
+    // (v4) With thanks to http://stackoverflow.com/a/8809472/3381433
     function _generateUUID() {
       var d = new Date().getTime();
       if(window.performance && typeof window.performance.now === "function"){

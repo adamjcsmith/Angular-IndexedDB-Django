@@ -25,7 +25,6 @@ angular.module('angularTestTwo')
       localObject.deleted = false;
       var newObject = { fields: localObject };
       offlineDB.objectUpdate(newObject);
-
     };
 
     function updateObject(localObject) {
@@ -44,7 +43,6 @@ angular.module('angularTestTwo')
       });
     };
 
-
     /* ---------- Private functions ---------- */
     function _updateToUI(text) {
       $scope.$applyAsync();
@@ -54,7 +52,5 @@ angular.module('angularTestTwo')
     function _sendNotification(text) {
       $.notify(text, {position: "bottom right", showDuration: 100, className: "success"});
     };
-
-
 
   });
